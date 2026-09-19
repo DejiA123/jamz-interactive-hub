@@ -61,6 +61,36 @@ export type Database = {
           },
         ]
       }
+      activity_answers: {
+        Row: {
+          activity_id: string
+          correct_option_id: string
+        }
+        Insert: {
+          activity_id: string
+          correct_option_id: string
+        }
+        Update: {
+          activity_id?: string
+          correct_option_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_answers_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: true
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_answers_correct_option_id_fkey"
+            columns: ["correct_option_id"]
+            isOneToOne: false
+            referencedRelation: "activity_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_options: {
         Row: {
           activity_id: string
