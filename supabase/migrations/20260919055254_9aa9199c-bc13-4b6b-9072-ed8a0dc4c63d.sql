@@ -1,0 +1,2 @@
+DROP POLICY "Anyone can answer published activities" ON public.responses;
+CREATE POLICY "Anyone can answer published activities" ON public.responses FOR INSERT TO anon, authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.activities a JOIN public.event_sessions s ON s.id = a.session_id JOIN public.participants p ON p.session_id = s.id WHERE a.id = activity_id AND p.id = participant_id AND a.is_published AND s.status = 'live'));
