@@ -14,7 +14,246 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          id: string
+          is_published: boolean
+          kind: Database["public"]["Enums"]["activity_kind"]
+          points: number
+          position: number
+          prompt: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          is_published?: boolean
+          kind: Database["public"]["Enums"]["activity_kind"]
+          points?: number
+          position?: number
+          prompt: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          is_published?: boolean
+          kind?: Database["public"]["Enums"]["activity_kind"]
+          points?: number
+          position?: number
+          prompt?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "event_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_answers: {
+        Row: {
+          activity_id: string
+          correct_option_id: string
+        }
+        Insert: {
+          activity_id: string
+          correct_option_id: string
+        }
+        Update: {
+          activity_id?: string
+          correct_option_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_answers_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: true
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_answers_correct_option_id_fkey"
+            columns: ["correct_option_id"]
+            isOneToOne: false
+            referencedRelation: "activity_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_options: {
+        Row: {
+          activity_id: string
+          id: string
+          is_correct: boolean
+          label: string
+          position: number
+        }
+        Insert: {
+          activity_id: string
+          id?: string
+          is_correct?: boolean
+          label: string
+          position?: number
+        }
+        Update: {
+          activity_id?: string
+          id?: string
+          is_correct?: boolean
+          label?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_options_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_sessions: {
+        Row: {
+          created_at: string
+          current_activity_id: string | null
+          id: string
+          join_code: string
+          owner_id: string | null
+          status: Database["public"]["Enums"]["session_status"]
+          theme: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_activity_id?: string | null
+          id?: string
+          join_code: string
+          owner_id?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          theme?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_activity_id?: string | null
+          id?: string
+          join_code?: string
+          owner_id?: string | null
+          status?: Database["public"]["Enums"]["session_status"]
+          theme?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_sessions_current_activity_fk"
+            columns: ["current_activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participants: {
+        Row: {
+          id: string
+          joined_at: string
+          nickname: string
+          score: number
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          nickname: string
+          score?: number
+          session_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          nickname?: string
+          score?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "event_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      responses: {
+        Row: {
+          activity_id: string
+          created_at: string
+          id: string
+          option_id: string | null
+          participant_id: string
+          points_awarded: number
+          rating: number | null
+          text_answer: string | null
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          id?: string
+          option_id?: string | null
+          participant_id: string
+          points_awarded?: number
+          rating?: number | null
+          text_answer?: string | null
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          id?: string
+          option_id?: string | null
+          participant_id?: string
+          points_awarded?: number
+          rating?: number | null
+          text_answer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responses_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "responses_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "activity_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "responses_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +262,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      activity_kind: "quiz" | "poll" | "word_cloud" | "rating" | "challenge"
+      session_status: "draft" | "live" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +390,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      activity_kind: ["quiz", "poll", "word_cloud", "rating", "challenge"],
+      session_status: ["draft", "live", "closed"],
+    },
   },
 } as const
