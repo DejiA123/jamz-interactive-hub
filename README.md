@@ -1,14 +1,21 @@
-# Welcome to your Lovable project
+# Gospel Jamz Engage
+
+I WANT YOU TO MAKE THE BEST INTERACTIVE ENGAGING APP EVER, THE IDEA IS THAT IT IS LIKE A MENTIMETER KAHOOT VIBE, AND WITH THE OPTION FOR ME TO MAKE MY OWN CUSTOMISABLE ENGAGING INTERACTIVE THINGS ON THE APP, 
+THE APP IS FOR MY UPCOMING EVENT GOSPEL JAMZ THE INFO IS IN THE ATTACHED IMAGE.
+
+PEOPLE SHOULD BE ABLE TO JOIN THE GAMES INTERACTIVE SESSIONS ON THE APP WITH A CODE, JUST LIKE KAHOOT
+
+MAKE THE APP LOOK CREATIVE JAW DROPPING, APPEALING.
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/9241d137-158e-4ad9-87db-3cc2cfb46ebe).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +27,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
