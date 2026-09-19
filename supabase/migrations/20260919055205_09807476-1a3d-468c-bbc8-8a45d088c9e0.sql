@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.score_response() FROM PUBLIC, anon, authenticated;
