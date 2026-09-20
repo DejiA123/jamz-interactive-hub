@@ -64,6 +64,11 @@
   --color-electric: var(--electric);
   --color-flame: var(--flame);
   --color-chrome: var(--chrome);
+  --color-live: var(--live);
+  --color-verdict-yes: var(--verdict-yes);
+  --color-verdict-yes-foreground: var(--verdict-yes-foreground);
+  --color-verdict-no: var(--verdict-no);
+  --color-verdict-no-foreground: var(--verdict-no-foreground);
   --shadow-chrome: var(--shadow-chrome);
 }
 
@@ -91,6 +96,11 @@
   --electric: oklch(0.81 0.143 196);
   --flame: oklch(0.82 0.135 76);
   --chrome: oklch(0.79 0.015 245);
+  --live: oklch(0.75 0.2 150);
+  --verdict-yes: oklch(0.58 0.17 151);
+  --verdict-yes-foreground: oklch(0.98 0.01 150);
+  --verdict-no: oklch(0.56 0.22 28);
+  --verdict-no-foreground: oklch(0.98 0.01 28);
   --shadow-chrome: inset 0 1px 0 oklch(1 0 0 / 12%), 0 18px 50px oklch(0 0 0 / 32%);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -174,6 +184,10 @@
 @utility stage-grid {
   background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 44px 44px;
+}
+
+@utility bg-stage-wash {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--background) 96%, transparent) 0%, color-mix(in oklab, var(--background) 75%, transparent) 55%, color-mix(in oklab, var(--background) 25%, transparent) 100%), linear-gradient(0deg, var(--background) 0%, transparent 55%);
 }
 
 @media (prefers-reduced-motion: reduce) {
