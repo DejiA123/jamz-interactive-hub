@@ -19,6 +19,8 @@ const buttonVariants = cva(
         broadcast: "bg-primary text-primary-foreground font-display uppercase hover:bg-accent hover:text-accent-foreground active:translate-y-px",
         studio: "bg-background text-foreground font-display uppercase hover:bg-secondary hover:text-secondary-foreground active:translate-y-px",
         signal: "border border-primary/50 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground",
+        verdictYes: "bg-verdict-yes text-verdict-yes-foreground font-display uppercase hover:bg-verdict-yes/85 active:translate-y-px",
+        verdictNo: "bg-verdict-no text-verdict-no-foreground font-display uppercase hover:bg-verdict-no/85 active:translate-y-px",
       },
       size: {
         default: "h-9 px-4 py-2",
