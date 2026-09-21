@@ -65,7 +65,7 @@ function AuthPage() {
         {message && <p role="status" className="border-l-2 border-secondary pl-3 text-sm text-muted-foreground">{message}</p>}
         <Button variant="broadcast" size="lg" className="w-full" disabled={busy}>{busy && <LoaderCircle className="animate-spin" />}{mode === "signin" ? "Enter studio" : "Create account"}</Button>
       </form>
-      <button type="button" className="mt-6 w-full text-sm text-primary hover:underline" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "New host? Create an account" : "Already a host? Sign in"}</button>
+      <Button type="button" variant="link" className="mt-6 w-full" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "New host? Create an account" : "Already a host? Sign in"}</Button>
     </div>
   </main>;
 }
