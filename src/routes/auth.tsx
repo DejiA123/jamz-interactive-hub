@@ -57,6 +57,7 @@ function AuthPage() {
       <div className="mb-8 flex items-center gap-3"><span className="grid size-11 place-items-center bg-primary text-primary-foreground"><Radio /></span><div><p className="font-display text-xl uppercase">Host Studio</p><p className="text-xs uppercase text-muted-foreground">Gospel Jamz 2026</p></div></div>
       <h1 className="font-display text-3xl uppercase">{mode === "signin" ? "Run the room" : "Create host account"}</h1>
       <p className="mt-2 text-muted-foreground">Build and launch interactive moments for your audience.</p>
+      <p className="mt-3 border-l-2 border-primary pl-3 text-sm text-muted-foreground">There are no preset credentials. Continue with Google, or create your own host account below.</p>
       <Button type="button" variant="outline" size="lg" className="mt-7 w-full" onClick={signInGoogle} disabled={busy}><Sparkles /> Continue with Google</Button>
       <div className="my-6 flex items-center gap-3 text-xs uppercase text-muted-foreground"><span className="h-px flex-1 bg-border" />or email<span className="h-px flex-1 bg-border" /></div>
       <form onSubmit={submit} className="space-y-4">
