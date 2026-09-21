@@ -46,14 +46,16 @@ function PlayPage() {
     ]);
     setLeaders(people ?? []);
     const nextActivity = activityResult.data;
-    if (nextActivity?.id !== activity?.id) { setSent(false); setAnswer(""); setRating(0); }
-    setActivity(nextActivity);
+    setActivity((current) => {
+      if (nextActivity?.id !== current?.id) { setSent(false); setAnswer(""); setRating(0); }
+      return nextActivity;
+    });
     if (nextActivity) {
       const { data } = await supabase.from("activity_options").select("*").eq("activity_id", nextActivity.id).order("position");
       setOptions(data ?? []);
     } else setOptions([]);
     setBusy(false);
-  }, [activity?.id, code]);
+  }, [code]);
 
   useEffect(() => {
     void loadRoom();
