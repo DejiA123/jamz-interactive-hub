@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, CalendarDays, ChevronDown, Gavel, Heart, LoaderCircle, MessageCircleQuestion, Mic2, Radio, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronDown, Gavel, Heart, LoaderCircle, MessageCircleQuestion, Mic2, Sparkles, Trophy } from "lucide-react";
+import { AppNavigation } from "@/components/app-navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,22 @@ const moments = [
   { icon: Gavel, number: "01", title: "You be the judge", copy: "Vote Guilty or Not Guilty during live drama and watch the room decide." },
   { icon: MessageCircleQuestion, number: "02", title: "Ask the panel", copy: "Send thoughtful questions from your seat for the host to bring on stage." },
   { icon: Heart, number: "03", title: "Send encouragement", copy: "Give ministers uplifting feedback they can read after their moment." },
+];
+
+const cloudWords = [
+  { word: "FREEDOM", className: "text-4xl sm:text-6xl" },
+  { word: "PURPOSE", className: "text-2xl text-primary sm:text-4xl" },
+  { word: "GRACE", className: "text-3xl text-secondary sm:text-5xl" },
+  { word: "TRUTH", className: "text-xl text-muted-foreground sm:text-3xl" },
+  { word: "PEACE", className: "text-3xl sm:text-5xl" },
+  { word: "POWER", className: "text-2xl text-primary sm:text-4xl" },
+];
+
+const leaders = [
+  { name: "Daniel A.", score: "2,450", width: "w-full" },
+  { name: "Sarah J.", score: "2,120", width: "w-[84%]" },
+  { name: "Marcus W.", score: "1,980", width: "w-[70%]" },
+  { name: "GraceFire", score: "1,740", width: "w-[56%]" },
 ];
 
 export const Route = createFileRoute("/")({
@@ -64,13 +81,8 @@ function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <header className="absolute inset-x-0 top-0 z-20 border-b border-foreground/15 px-5 py-5 lg:px-10">
-        <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-          <Link to="/" className="min-w-0 font-display text-xl uppercase sm:text-2xl">Gospel Jamz <span className="text-primary">2026</span></Link>
-          <Button asChild variant="ghost" className="text-foreground hover:bg-foreground/10 hover:text-primary"><Link to="/auth"><Radio /> Host studio</Link></Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background pb-20 text-foreground selection:bg-primary selection:text-primary-foreground sm:pb-0">
+      <AppNavigation />
 
       <main>
         <section className="relative min-h-[92svh] overflow-hidden border-b border-border">
@@ -83,7 +95,7 @@ function HomePage() {
               <p className="mt-5 max-w-xl text-base text-foreground/75 sm:text-lg">Vote, ask, encourage and play live at Gospel Jamz. 16–18 October · The Power House Int'l.</p>
             </div>
 
-            <div className="mt-9 max-w-3xl border border-foreground/20 bg-background/90 p-3 backdrop-blur-md sm:p-4">
+            <div id="join" className="mt-9 max-w-3xl scroll-mt-24 border border-foreground/20 bg-background/90 p-3 backdrop-blur-md sm:p-4">
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div className="min-w-0">
                   <label htmlFor="event-code" className="mb-2 block text-xs font-semibold uppercase text-primary">Enter the code on screen</label>
@@ -97,6 +109,39 @@ function HomePage() {
               </div>
             </div>
             <a href="#programme" className="mt-8 inline-flex w-fit items-center gap-2 text-xs font-semibold uppercase text-foreground/60 hover:text-primary">Explore the event <ChevronDown className="size-4" /></a>
+          </div>
+        </section>
+
+        <section className="border-b border-border px-5 py-14 lg:px-10 lg:py-20">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <div><p className="text-xs font-semibold uppercase text-primary">Live interaction board</p><h2 className="mt-3 max-w-[15ch] font-display text-3xl uppercase sm:text-5xl">Always ready before the host begins.</h2></div>
+              <p className="max-w-sm text-sm leading-6 text-muted-foreground">The event opens with a living preview of the games, voices and scores your audience will experience.</p>
+            </div>
+
+            <div className="mt-10 grid gap-4 lg:grid-cols-12">
+              <article className="border border-border bg-card p-5 sm:p-7 lg:col-span-7 lg:row-span-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4"><div><p className="text-xs font-semibold uppercase text-primary">Live interaction · Word cloud</p><h3 className="mt-2 font-display text-xl uppercase">What does worship mean to you?</h3></div><span className="animate-live mt-1 size-2 bg-live" /></div>
+                <div className="flex min-h-72 flex-wrap content-center items-center justify-center gap-x-7 gap-y-4 py-9 text-center font-display uppercase sm:min-h-80">{cloudWords.map((item) => <span key={item.word} className={item.className}>{item.word}</span>)}</div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] border-t border-border pt-4 text-sm text-muted-foreground"><span>412 responses received</span><span className="font-semibold text-primary">Add your word</span></div>
+              </article>
+
+              <article className="border border-border bg-card p-5 sm:p-7 lg:col-span-5">
+                <div className="flex items-center justify-between gap-4"><span className="bg-secondary px-3 py-1 text-xs font-bold uppercase text-secondary-foreground">Pop quiz</span><span className="text-xs text-muted-foreground">Preview round</span></div>
+                <h3 className="mt-7 max-w-[22ch] font-display text-xl uppercase sm:text-2xl">Which apostle was known as the “Beloved”?</h3>
+                <div className="mt-7 grid gap-2">{["Peter", "Paul", "John", "James"].map((option, index) => <div key={option} className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border border-border px-4 font-semibold"><span className="font-display text-xs text-primary">{String(index + 1).padStart(2, "0")}</span>{option}</div>)}</div>
+              </article>
+
+              <article className="border border-border bg-card p-5 sm:p-7 lg:col-span-5">
+                <div className="flex items-center justify-between"><h3 className="font-display text-xl uppercase">Top participants</h3><Trophy className="text-secondary" /></div>
+                <ol className="mt-6 space-y-4">{leaders.map((leader, index) => <li key={leader.name} className="grid grid-cols-[auto_minmax(0,1fr)] gap-4"><span className="font-display text-sm text-primary">{String(index + 1).padStart(2, "0")}</span><div className="min-w-0"><div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-sm"><b className="truncate">{leader.name}</b><span>{leader.score}</span></div><div className="mt-2 h-1 bg-muted"><div className={`${leader.width} h-full ${index === 0 ? "bg-primary" : "bg-secondary"}`} /></div></div></li>)}</ol>
+              </article>
+
+              <article className="border border-secondary/40 bg-card p-5 sm:p-7 lg:col-span-12">
+                <p className="text-xs font-semibold uppercase text-secondary">Active challenge</p>
+                <div className="mt-3 grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"><h3 className="max-w-[24ch] font-display text-2xl uppercase sm:text-4xl">Share your testimony in 10 words.</h3><Button asChild variant="broadcast" size="lg"><Link to="/play/$code" params={{ code: "260018" }}>Open live room <ArrowRight /></Link></Button></div>
+              </article>
+            </div>
           </div>
         </section>
 

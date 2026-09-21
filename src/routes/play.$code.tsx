@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Clock3, Gavel, Heart, LoaderCircle, MessageCircleQuestion, Radio, Send, Star, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppNavigation } from "@/components/app-navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -81,7 +82,8 @@ function PlayPage() {
   if (busy && !session) return <div className="grid min-h-screen place-items-center bg-background text-primary"><LoaderCircle className="size-8 animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background pb-20 pt-16 text-foreground sm:pb-0">
+      <AppNavigation />
       <header className="border-b border-border px-5 py-4 lg:px-10"><div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4"><div className="flex min-w-0 items-center gap-3"><span className="animate-live size-2 shrink-0 bg-live"/><div className="min-w-0"><p className="truncate font-display uppercase">{session?.title ?? "Gospel Jamz Live"}</p><p className="text-xs uppercase text-muted-foreground">Room {code}</p></div></div><Button asChild variant="ghost" size="icon" aria-label="Leave room"><Link to="/"><ArrowLeft /></Link></Button></div></header>
 
       <main className="mx-auto max-w-6xl px-5 py-8 lg:px-10 lg:py-12">

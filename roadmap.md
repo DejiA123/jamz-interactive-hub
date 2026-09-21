@@ -4,3 +4,4 @@
 - [x] Build the audience live screen for votes, feedback, questions, quizzes, and results
 - [x] Build a customizable Host Studio with templates and event ordering
 - [x] Verify desktop/mobile interactions, metadata, and app health
+- [x] Add the default live interaction board and app-style navigation
