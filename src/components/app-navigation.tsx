@@ -38,14 +38,12 @@ export function AppNavigation() {
       </header>
 
       <nav aria-label="Mobile navigation" className="fixed inset-x-3 bottom-3 z-40 grid h-16 grid-cols-3 border border-border bg-card/95 p-1.5 shadow-chrome backdrop-blur-xl sm:hidden">
-        {items.map(({ label, to, params, icon: Icon }) => {
-          const active = to === "/" ? pathname === "/" : pathname.startsWith("/play/");
-          return (
-            <Button key={label} asChild variant={active ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
-              <Link to={to} params={params}><Icon className="size-4" />{label}</Link>
-            </Button>
-          );
-        })}
+        <Button asChild variant={pathname === "/" ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
+          <Link to="/"><Home className="size-4" />Home</Link>
+        </Button>
+        <Button asChild variant={pathname.startsWith("/play/") ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
+          <Link to="/play/$code" params={{ code: "260018" }}><Gamepad2 className="size-4" />Join live</Link>
+        </Button>
         <Button asChild variant={pathname === "/auth" ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
           <Link to="/auth"><Radio className="size-4" />Host</Link>
         </Button>
