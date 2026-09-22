@@ -1,72 +1,151 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, LoaderCircle, Radio, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, KeyRound, LoaderCircle, Lock, Radio, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { isHostAuthenticated, verifyAndSetHostPasscode } from "@/lib/live-sync";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [
-    { title: "Host Sign In — Gospel Jamz 2026" },
-    { name: "description", content: "Sign in to create and run Gospel Jamz live audience sessions." },
-    { property: "og:title", content: "Host Sign In — Gospel Jamz 2026" },
-    { property: "og:description", content: "Create quizzes, polls, word clouds and live Gospel Jamz challenges." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ]}),
+  head: () => ({
+    meta: [
+      { title: "Host Studio Access — Gospel Jamz 2026" },
+      { name: "description", content: "Enter passcode to access Gospel Jamz Host Studio." },
+      { property: "og:title", content: "Host Studio Access — Gospel Jamz 2026" },
+      { property: "og:description", content: "Enter passcode to access Gospel Jamz Host Studio." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: AuthPage,
 });
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [passcode, setPasscode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      if (data.user) void navigate({ to: "/studio", replace: true });
-    });
+    if (isHostAuthenticated()) {
+      void navigate({ to: "/studio", replace: true });
+    }
   }, [navigate]);
 
-  async function submit(event: React.FormEvent) {
+  function submit(event: React.FormEvent) {
     event.preventDefault();
-    setBusy(true); setMessage("");
-    const result = mode === "signin"
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/auth" } });
-    setBusy(false);
-    if (result.error) return setMessage(result.error.message);
-    if (mode === "signup" && !result.data.session) return setMessage("Check your email to confirm your host account.");
-    void navigate({ to: "/studio" });
+    setError("");
+    setBusy(true);
+
+    const isValid = verifyAndSetHostPasscode(passcode);
+    if (isValid) {
+      setUnlocked(true);
+      setTimeout(() => {
+        void navigate({ to: "/studio", replace: true });
+      }, 500);
+    } else {
+      setBusy(false);
+      setError("Incorrect passcode. Please enter the valid Host Studio passcode.");
+    }
   }
 
-  async function signInGoogle() {
-    setBusy(true); setMessage("");
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
-    if (result.error) { setMessage(result.error.message); setBusy(false); return; }
-    if (!result.redirected) void navigate({ to: "/studio" });
-  }
+  return (
+    <main className="stage-grid flex min-h-screen items-center justify-center px-5 py-12">
+      <div className="w-full max-w-md border border-border bg-card p-7 chrome-edge sm:p-9">
+        <Link
+          to="/"
+          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="size-4" /> Back to event
+        </Link>
 
-  return <main className="stage-grid flex min-h-screen items-center justify-center px-5 py-12">
-    <div className="w-full max-w-md border border-border bg-card p-7 chrome-edge sm:p-9">
-      <Link to="/" className="mb-10 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft /> Back to the event</Link>
-      <div className="mb-8 flex items-center gap-3"><span className="grid size-11 place-items-center bg-primary text-primary-foreground"><Radio /></span><div><p className="font-display text-xl uppercase">Host Studio</p><p className="text-xs uppercase text-muted-foreground">Gospel Jamz 2026</p></div></div>
-      <h1 className="font-display text-3xl uppercase">{mode === "signin" ? "Run the room" : "Create host account"}</h1>
-      <p className="mt-2 text-muted-foreground">Build and launch interactive moments for your audience.</p>
-      <p className="mt-3 border-l-2 border-primary pl-3 text-sm text-muted-foreground">There are no preset credentials. Continue with Google, or create your own host account below.</p>
-      <Button type="button" variant="outline" size="lg" className="mt-7 w-full" onClick={signInGoogle} disabled={busy}><Sparkles /> Continue with Google</Button>
-      <div className="my-6 flex items-center gap-3 text-xs uppercase text-muted-foreground"><span className="h-px flex-1 bg-border" />or email<span className="h-px flex-1 bg-border" /></div>
-      <form onSubmit={submit} className="space-y-4">
-        <Input aria-label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Host email" required className="h-12" />
-        <Input aria-label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" minLength={6} required className="h-12" />
-        {message && <p role="status" className="border-l-2 border-secondary pl-3 text-sm text-muted-foreground">{message}</p>}
-        <Button variant="broadcast" size="lg" className="w-full" disabled={busy}>{busy && <LoaderCircle className="animate-spin" />}{mode === "signin" ? "Enter studio" : "Create account"}</Button>
-      </form>
-      <Button type="button" variant="link" className="mt-6 w-full" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "New host? Create an account" : "Already a host? Sign in"}</Button>
-    </div>
-  </main>;
+        <div className="mb-6 flex items-center gap-3">
+          <span className="grid size-11 place-items-center bg-primary text-primary-foreground">
+            <Radio className="size-5" />
+          </span>
+          <div>
+            <p className="font-display text-xl uppercase leading-tight">Host Studio</p>
+            <p className="text-xs uppercase text-muted-foreground">Gospel Jamz 2026</p>
+          </div>
+        </div>
+
+        <h1 className="font-display text-3xl uppercase tracking-tight">
+          Control Room Access
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+          Enter the private Host passcode to manage live polls, quizzes, word clouds, and audience moments.
+        </p>
+
+        <form onSubmit={submit} className="mt-7 space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="host-passcode"
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary"
+            >
+              <KeyRound className="size-3.5" /> Host Passcode
+            </label>
+            <div className="relative">
+              <Input
+                id="host-passcode"
+                type="password"
+                autoComplete="current-password"
+                autoFocus
+                value={passcode}
+                onChange={(e) => {
+                  setPasscode(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="Enter passcode"
+                required
+                className="h-14 border-border bg-background px-4 font-mono text-lg tracking-widest uppercase placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground sm:text-xl"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <Lock className="size-4" />
+              </span>
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="border-l-2 border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          {unlocked && (
+            <div className="flex items-center gap-2 border-l-2 border-primary bg-primary/10 px-3 py-2 text-sm text-primary">
+              <Check className="size-4" /> Passcode verified. Opening Host Studio…
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            variant="broadcast"
+            size="lg"
+            className="mt-2 w-full h-14 text-base"
+            disabled={busy || unlocked || !passcode.trim()}
+          >
+            {busy ? (
+              <>
+                <LoaderCircle className="size-5 animate-spin" /> Unlocking Studio…
+              </>
+            ) : unlocked ? (
+              <>
+                <ShieldCheck className="size-5" /> Access Granted
+              </>
+            ) : (
+              <>
+                <KeyRound className="size-5" /> Enter Studio
+              </>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-8 border-t border-border pt-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            Authorised event controllers only.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
 }

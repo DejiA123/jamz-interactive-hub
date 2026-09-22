@@ -1,10 +1,37 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { CalendarDays, Gamepad2, Home, Radio } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays, Gamepad2, Home, Radio, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import { supabase } from "@/integrations/supabase/client";
+import { useLiveSyncListener } from "@/lib/live-sync";
 
 export function AppNavigation() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [activeCode, setActiveCode] = useState<string>("260018");
+  const [isLive, setIsLive] = useState(false);
+
+  async function checkActiveRoom() {
+    const { data } = await supabase
+      .from("event_sessions")
+      .select("join_code, status")
+      .eq("status", "live")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.join_code) {
+      setActiveCode(data.join_code);
+      setIsLive(true);
+    }
+  }
+
+  useEffect(() => {
+    void checkActiveRoom();
+  }, []);
+
+  useLiveSyncListener(() => {
+    void checkActiveRoom();
+  });
 
   return (
     <>
@@ -15,33 +42,68 @@ export function AppNavigation() {
           </Link>
           <nav aria-label="Main navigation" className="hidden items-center gap-1 sm:flex">
             <Button asChild variant={pathname === "/" ? "signal" : "ghost"}>
-              <Link to="/"><Home /> Home</Link>
+              <Link to="/">
+                <Home className="size-4" /> Home
+              </Link>
             </Button>
             <Button asChild variant={pathname.startsWith("/play/") ? "signal" : "ghost"}>
-              <Link to="/play/$code" params={{ code: "260018" }}><Gamepad2 /> Live demo</Link>
+              <Link to="/play/$code" params={{ code: activeCode }}>
+                <Gamepad2 className="size-4" /> Join Live
+                {isLive && <span className="size-1.5 rounded-full bg-live animate-live ml-1" />}
+              </Link>
             </Button>
             <Button asChild variant="ghost">
-              <a href="/#programme"><CalendarDays /> Programme</a>
+              <a href="/#programme">
+                <CalendarDays className="size-4" /> Programme
+              </a>
             </Button>
             <Button asChild variant="broadcast">
-              <Link to="/auth"><Radio /> Host studio</Link>
+              <Link to="/auth">
+                <Radio className="size-4" /> Host Studio
+              </Link>
             </Button>
           </nav>
           <Button asChild variant="broadcast" size="sm" className="sm:hidden">
-            <Link to="/auth"><Radio /> Host</Link>
+            <Link to="/auth">
+              <Radio className="size-4" /> Host
+            </Link>
           </Button>
         </div>
       </header>
 
-      <nav aria-label="Mobile navigation" className="fixed inset-x-3 bottom-3 z-40 grid h-16 grid-cols-3 border border-border bg-card/95 p-1.5 shadow-chrome backdrop-blur-xl sm:hidden">
-        <Button asChild variant={pathname === "/" ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
-          <Link to="/"><Home className="size-4" />Home</Link>
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed inset-x-3 bottom-3 z-40 grid h-16 grid-cols-3 border border-border bg-card/95 p-1.5 shadow-chrome backdrop-blur-xl sm:hidden"
+      >
+        <Button
+          asChild
+          variant={pathname === "/" ? "signal" : "ghost"}
+          className="h-full flex-col gap-1 px-2 text-[10px]"
+        >
+          <Link to="/">
+            <Home className="size-4" />
+            Home
+          </Link>
         </Button>
-        <Button asChild variant={pathname.startsWith("/play/") ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
-          <Link to="/play/$code" params={{ code: "260018" }}><Gamepad2 className="size-4" />Join live</Link>
+        <Button
+          asChild
+          variant={pathname.startsWith("/play/") ? "signal" : "ghost"}
+          className="h-full flex-col gap-1 px-2 text-[10px]"
+        >
+          <Link to="/play/$code" params={{ code: activeCode }}>
+            <Gamepad2 className="size-4" />
+            Join Live
+          </Link>
         </Button>
-        <Button asChild variant={pathname === "/auth" ? "signal" : "ghost"} className="h-full flex-col gap-1 px-2 text-[10px]">
-          <Link to="/auth"><Radio className="size-4" />Host</Link>
+        <Button
+          asChild
+          variant={pathname === "/auth" ? "signal" : "ghost"}
+          className="h-full flex-col gap-1 px-2 text-[10px]"
+        >
+          <Link to="/auth">
+            <Radio className="size-4" />
+            Host
+          </Link>
         </Button>
       </nav>
     </>
