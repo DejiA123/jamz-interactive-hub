@@ -2,10 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, Gamepad2, Home, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const items = [
-  { label: "Home", to: "/" as const, icon: Home },
-  { label: "Join live", to: "/play/$code" as const, params: { code: "260018" }, icon: Gamepad2 },
-];
 
 export function AppNavigation() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
