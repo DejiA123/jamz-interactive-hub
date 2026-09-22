@@ -47,10 +47,16 @@ function StudioPage() {
   const selected = useMemo(() => sessions.find((item) => item.id === selectedId) ?? null, [selectedId, sessions]);
 
   async function loadSessions(preferredId?: string) {
-    const { data } = await supabase.from("event_sessions").select("*").order("created_at", { ascending: false });
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setBusy(false); return setMessage("Your host session expired. Please sign in again."); }
+    const { data } = await supabase
+      .from("event_sessions")
+      .select("*")
+      .eq("owner_id", auth.user.id)
+      .order("created_at", { ascending: false });
     const next = data ?? [];
     setSessions(next);
-    setSelectedId(preferredId ?? selectedId ?? next[0]?.id ?? null);
+    setSelectedId(preferredId ?? (next.some((item) => item.id === selectedId) ? selectedId : null) ?? next[0]?.id ?? null);
     setBusy(false);
   }
 

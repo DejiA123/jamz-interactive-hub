@@ -1,0 +1,1 @@
+UPDATE public.event_sessions SET owner_id = 'b434cd39-dafb-4506-bd43-1c720bfcad16' WHERE id = '10000000-0000-4000-8000-000000000001' AND owner_id IS NULL;
