@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -12,7 +12,6 @@ import {
   Radio,
   Share2,
   Sparkles,
-  Star,
   Trophy,
   Users,
 } from "lucide-react";
@@ -23,6 +22,13 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useLiveSyncListener } from "@/lib/live-sync";
+import {
+  fetchResponses,
+  rememberPlayer,
+  sortLiveMoments,
+  uniqueTopic,
+  verifyStoredPlayer,
+} from "@/lib/rooms";
 import stageImage from "@/assets/gospel-jamz-stage.jpg";
 
 type Activity = Tables<"activities">;
@@ -74,7 +80,7 @@ function HomePage() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
 
   const loadLiveSession = useCallback(async () => {
-    // 1. Fetch live or latest event session
+    // 1. The most recently active live room, else the newest room
     const { data: session } = await supabase
       .from("event_sessions")
       .select("*")
@@ -98,62 +104,93 @@ function HomePage() {
     setActiveSession(targetSession);
     setCode((prev) => (prev ? prev : targetSession.join_code));
 
-    // 2. Fetch current activity or all activities for this session
+    // 2. The room's run of show and its real players
     const [{ data: activitiesData }, { data: leadersData }] = await Promise.all([
       supabase.from("activities").select("*").eq("session_id", targetSession.id).order("position"),
-      supabase.from("participants").select("*").eq("session_id", targetSession.id).order("score", { ascending: false }).limit(5),
+      supabase
+        .from("participants")
+        .select("*")
+        .eq("session_id", targetSession.id)
+        .order("score", { ascending: false })
+        .order("joined_at")
+        .limit(5),
     ]);
 
     setAllActivities(activitiesData ?? []);
     setTopLeaders(leadersData ?? []);
 
-    const activeAct =
-      activitiesData?.find((a) => a.id === targetSession.current_activity_id) ??
-      activitiesData?.find((a) => a.is_published) ??
-      activitiesData?.[0] ??
-      null;
+    // 3. The spotlight moment on the big screen: only ever one that is actually live
+    const liveActs =
+      targetSession.status === "live" ? (activitiesData ?? []).filter((a) => a.is_published) : [];
+    const activeAct = sortLiveMoments(liveActs, targetSession.current_activity_id)[0] ?? null;
 
     setCurrentActivity(activeAct);
 
     if (activeAct) {
-      const [{ data: optData }, { data: respData }] = await Promise.all([
+      const [{ data: optData }, respData] = await Promise.all([
         supabase.from("activity_options").select("*").eq("activity_id", activeAct.id).order("position"),
-        supabase.from("responses").select("*").eq("activity_id", activeAct.id).order("created_at", { ascending: false }),
+        fetchResponses([activeAct.id]),
       ]);
       setOptions(optData ?? []);
-      setResponses(respData ?? []);
+      setResponses(respData);
     } else {
       setOptions([]);
       setResponses([]);
     }
   }, []);
 
-  useEffect(() => {
-    void loadLiveSession();
+  // Coalesce bursts of realtime events (e.g. a wave of votes) into one reload.
+  const reloadTimer = useRef<number | undefined>(undefined);
+  const scheduleReload = useCallback(() => {
+    window.clearTimeout(reloadTimer.current);
+    reloadTimer.current = window.setTimeout(() => void loadLiveSession(), 300);
   }, [loadLiveSession]);
 
-  // Realtime updates from Supabase and local broadcast
   useEffect(() => {
-    if (!activeSession) return;
+    void loadLiveSession();
+    return () => window.clearTimeout(reloadTimer.current);
+  }, [loadLiveSession]);
 
-    const channel = supabase
-      .channel(`home-live-${activeSession.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "event_sessions" }, () => void loadLiveSession())
-      .on("postgres_changes", { event: "*", schema: "public", table: "activities" }, () => void loadLiveSession())
-      .on("postgres_changes", { event: "*", schema: "public", table: "responses" }, () => void loadLiveSession())
-      .on("postgres_changes", { event: "*", schema: "public", table: "participants" }, () => void loadLiveSession())
-      .subscribe();
+  // Realtime updates for the featured room only
+  const activeSessionId = activeSession?.id;
+  const currentActivityId = currentActivity?.id;
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    let channel = supabase
+      .channel(uniqueTopic(`home-live-${activeSessionId}`))
+      // Any room going live or closing can change which room is featured.
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_sessions" }, scheduleReload)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activities", filter: `session_id=eq.${activeSessionId}` },
+        scheduleReload,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "participants", filter: `session_id=eq.${activeSessionId}` },
+        scheduleReload,
+      )
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "activities" }, scheduleReload)
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "participants" }, scheduleReload);
+
+    if (currentActivityId) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "responses", filter: `activity_id=eq.${currentActivityId}` },
+        scheduleReload,
+      );
+    }
+    channel.subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [activeSession, loadLiveSession]);
+  }, [activeSessionId, currentActivityId, scheduleReload]);
 
-  useLiveSyncListener(() => {
-    void loadLiveSession();
-  });
+  useLiveSyncListener(scheduleReload);
 
-  function requestJoin(overrideCode?: string) {
+  async function requestJoin(overrideCode?: string) {
     const targetCode = overrideCode ?? code;
     if (targetCode.length !== 6) {
       setMessage("Enter the six-digit code shown on screen.");
@@ -161,11 +198,33 @@ function HomePage() {
     }
     setCode(targetCode);
     setMessage("");
+
+    const { data: room } = await supabase
+      .from("event_sessions")
+      .select("id,status")
+      .eq("join_code", targetCode)
+      .maybeSingle();
+
+    if (!room) {
+      setMessage(`There is no room with code ${targetCode}. Check the code on screen.`);
+      return;
+    }
+    if (room.status !== "live") {
+      setMessage(`Room ${targetCode} is closed right now. Wait for the host to open it.`);
+      return;
+    }
+
+    // Already joined this room on this device: go straight back in.
+    if (await verifyStoredPlayer(room.id)) {
+      void navigate({ to: "/play/$code", params: { code: targetCode } });
+      return;
+    }
     setJoinOpen(true);
   }
 
   async function joinSession(event: React.FormEvent) {
     event.preventDefault();
+    const name = nickname.trim();
     setJoining(true);
     setMessage("");
 
@@ -184,7 +243,7 @@ function HomePage() {
 
     const { data: participant, error } = await supabase
       .from("participants")
-      .insert({ session_id: session.id, nickname: nickname.trim() })
+      .insert({ session_id: session.id, nickname: name })
       .select("id")
       .single();
 
@@ -194,7 +253,8 @@ function HomePage() {
       return;
     }
 
-    sessionStorage.setItem(`gj-participant-${session.id}`, participant.id);
+    rememberPlayer(session.id, { id: participant.id, nickname: name });
+    setJoinOpen(false);
     void navigate({ to: "/play/$code", params: { code } });
   }
 
@@ -241,15 +301,21 @@ function HomePage() {
                     maxLength={6}
                     value={code}
                     onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-                    onKeyDown={(event) => event.key === "Enter" && requestJoin()}
+                    onKeyDown={(event) => event.key === "Enter" && void requestJoin()}
                     placeholder={activeSession?.join_code ?? "000000"}
                     className="h-14 border-border bg-card px-4 font-display text-2xl text-foreground placeholder:text-muted-foreground sm:h-16"
                   />
                 </div>
-                <Button variant="broadcast" size="lg" onClick={() => requestJoin()} className="h-14 sm:h-16 sm:px-10">
+                <Button variant="broadcast" size="lg" onClick={() => void requestJoin()} className="h-14 sm:h-16 sm:px-10">
                   Join live <ArrowRight className="size-5" />
                 </Button>
               </div>
+
+              {message && !joinOpen && (
+                <p role="status" className="mt-3 border-l-2 border-secondary pl-3 text-sm text-foreground/80">
+                  {message}
+                </p>
+              )}
 
               {activeSession && (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -264,9 +330,15 @@ function HomePage() {
                     </button>
                     )
                   </span>
-                  <span className="flex items-center gap-2">
-                    <span className="animate-live size-2 rounded-full bg-live" /> Live room ready
-                  </span>
+                  {activeSession.status === "live" ? (
+                    <span className="flex items-center gap-2">
+                      <span className="animate-live size-2 rounded-full bg-live" /> Live room ready
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span className="size-2 rounded-full bg-muted-foreground" /> Room closed
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -310,7 +382,9 @@ function HomePage() {
                         {currentActivity?.prompt ?? "Waiting for host to launch the next live moment…"}
                       </h3>
                     </div>
-                    <span className="animate-live mt-1 size-2 rounded-full bg-live" />
+                    <span
+                      className={`mt-1 size-2 rounded-full ${currentActivity ? "animate-live bg-live" : "bg-muted-foreground"}`}
+                    />
                   </div>
 
                   {/* Real Content for Current Activity */}
@@ -371,18 +445,24 @@ function HomePage() {
                     )}
 
                     {currentActivity?.kind === "rating" && (
-                      <div className="py-6 text-center space-y-3">
-                        <p className="font-display text-6xl text-secondary">
-                          {responses.length > 0
-                            ? (responses.reduce((sum, r) => sum + (r.rating ?? 0), 0) / responses.length).toFixed(1)
-                            : "0.0"}
-                        </p>
-                        <p className="text-xs uppercase text-muted-foreground">Average Audience Rating</p>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star key={star} className="size-6 fill-current text-secondary" />
-                          ))}
-                        </div>
+                      <div className="space-y-2 py-4 max-h-60 overflow-y-auto">
+                        {responses.filter((resp) => resp.text_answer).length === 0 ? (
+                          <p className="text-sm italic text-muted-foreground text-center py-6">
+                            Words of encouragement for the minister will appear here as they arrive…
+                          </p>
+                        ) : (
+                          responses
+                            .filter((resp) => resp.text_answer)
+                            .map((resp) => (
+                              <div
+                                key={resp.id}
+                                className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border border-border bg-background p-3 text-sm"
+                              >
+                                <Heart className="mt-0.5 size-4 text-secondary" />
+                                <p className="text-foreground">{resp.text_answer}</p>
+                              </div>
+                            ))
+                        )}
                       </div>
                     )}
 
@@ -409,7 +489,7 @@ function HomePage() {
                   <Button
                     variant="broadcast"
                     size="sm"
-                    onClick={() => activeSession && requestJoin(activeSession.join_code)}
+                    onClick={() => activeSession && void requestJoin(activeSession.join_code)}
                   >
                     Submit your answer <ArrowRight className="size-3.5" />
                   </Button>
@@ -431,17 +511,23 @@ function HomePage() {
                   ) : (
                     allActivities.map((act, index) => {
                       const isCurrent = act.id === currentActivity?.id;
+                      const isLive = activeSession?.status === "live" && act.is_published;
                       return (
                         <div
                           key={act.id}
                           className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border p-2.5 text-xs ${
                             isCurrent
                               ? "border-primary bg-primary/10 font-bold text-primary"
-                              : "border-border text-muted-foreground"
+                              : isLive
+                                ? "border-primary/40 text-foreground"
+                                : "border-border text-muted-foreground"
                           }`}
                         >
                           <span className="font-display">{String(index + 1).padStart(2, "0")}</span>
-                          <span className="truncate">{act.prompt}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            {isLive && <span className="size-1.5 shrink-0 rounded-full bg-live animate-live" />}
+                            <span className="truncate">{act.prompt}</span>
+                          </span>
                           <span className="uppercase text-[10px]">{kindLabel(act.kind)}</span>
                         </div>
                       );
@@ -504,7 +590,7 @@ function HomePage() {
                     <Button
                       variant="broadcast"
                       size="lg"
-                      onClick={() => activeSession && requestJoin(activeSession.join_code)}
+                      onClick={() => activeSession && void requestJoin(activeSession.join_code)}
                     >
                       Join live room now <ArrowRight className="size-4" />
                     </Button>

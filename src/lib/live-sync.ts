@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const HOST_PASSCODE = "VIRTUALKEYS";
@@ -6,10 +6,7 @@ const AUTH_KEY = "gj_host_passcode_auth";
 
 export function isHostAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    sessionStorage.getItem(AUTH_KEY) === "true" ||
-    localStorage.getItem(AUTH_KEY) === "true"
-  );
+  return sessionStorage.getItem(AUTH_KEY) === "true" || localStorage.getItem(AUTH_KEY) === "true";
 }
 
 export function verifyAndSetHostPasscode(passcode: string): boolean {
@@ -84,13 +81,40 @@ export function broadcastLiveSync(payload: Omit<LiveSyncPayload, "timestamp">) {
   }
 }
 
+// supabase.channel() returns the same instance for the same topic, and a channel that is still
+// leaving can't be re-joined. So every listener shares one subscription that stays open for the
+// life of the page instead of each subscribing (and tearing down) its own.
+const realtimeListeners = new Set<(payload: LiveSyncPayload) => void>();
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+function addRealtimeListener(listener: (payload: LiveSyncPayload) => void) {
+  realtimeListeners.add(listener);
+  if (!realtimeChannel) {
+    realtimeChannel = supabase
+      .channel("gj-live-broadcast")
+      .on("broadcast", { event: "live_sync" }, ({ payload }) => {
+        if (payload) realtimeListeners.forEach((notify) => notify(payload as LiveSyncPayload));
+      })
+      .subscribe();
+  }
+  return () => {
+    realtimeListeners.delete(listener);
+  };
+}
+
 export function useLiveSyncListener(onSync: (payload: LiveSyncPayload) => void) {
+  // Keep the latest callback without resubscribing on every render.
+  const onSyncRef = useRef(onSync);
+  onSyncRef.current = onSync;
+
   useEffect(() => {
+    const notify = (payload: LiveSyncPayload) => onSyncRef.current(payload);
+
     // Local BroadcastChannel
     const ch = getLocalChannel();
     const handleLocal = (e: MessageEvent) => {
       if (e.data && e.data.type) {
-        onSync(e.data as LiveSyncPayload);
+        notify(e.data as LiveSyncPayload);
       }
     };
     ch?.addEventListener("message", handleLocal);
@@ -100,7 +124,7 @@ export function useLiveSyncListener(onSync: (payload: LiveSyncPayload) => void) 
       if (e.key === "gj_live_ping" && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          onSync(parsed);
+          notify(parsed);
         } catch {
           // ignore
         }
@@ -109,17 +133,12 @@ export function useLiveSyncListener(onSync: (payload: LiveSyncPayload) => void) 
     window.addEventListener("storage", handleStorage);
 
     // Supabase Realtime channel
-    const sbChannel = supabase
-      .channel("gj-live-broadcast")
-      .on("broadcast", { event: "live_sync" }, ({ payload }) => {
-        if (payload) onSync(payload as LiveSyncPayload);
-      })
-      .subscribe();
+    const removeRealtime = addRealtimeListener(notify);
 
     return () => {
       ch?.removeEventListener("message", handleLocal);
       window.removeEventListener("storage", handleStorage);
-      void supabase.removeChannel(sbChannel);
+      removeRealtime();
     };
-  }, [onSync]);
+  }, []);
 }
