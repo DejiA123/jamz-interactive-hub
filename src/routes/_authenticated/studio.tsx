@@ -21,6 +21,7 @@ import {
   Share2,
   Sparkles,
   Trash2,
+  UserX,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,14 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Tables } from "@/integrations/supabase/types";
-import { broadcastLiveSync, lockHostStudio, useLiveSyncListener } from "@/lib/live-sync";
+import {
+  broadcastLiveSync,
+  forgetHostPasscode,
+  getHostPasscode,
+  lockHostStudio,
+  rememberHostPasscode,
+  useLiveSyncListener,
+} from "@/lib/live-sync";
 import { fetchResponses, sortLiveMoments, uniqueTopic } from "@/lib/rooms";
 
 type Kind = Database["public"]["Enums"]["activity_kind"];
@@ -78,6 +86,7 @@ type Draft = {
   correctIndex: number;
 };
 type Confirmation = { title: string; body: string; action: string; run: () => Promise<void> };
+type PasscodeRequest = { run: (passcode: string) => Promise<void> };
 
 const templates: Template[] = [
   {
@@ -164,6 +173,10 @@ function StudioPage() {
   const [eventTitle, setEventTitle] = useState("Gospel Jamz Live");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [passcodePrompt, setPasscodePrompt] = useState<PasscodeRequest | null>(null);
+  const [passcodeInput, setPasscodeInput] = useState("");
+  const [passcodeError, setPasscodeError] = useState("");
+  const [checkingPasscode, setCheckingPasscode] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -608,6 +621,76 @@ function StudioPage() {
     });
   }
 
+  /** Run a host-only database change, asking for the passcode first if this tab hasn't got it. */
+  async function withHostPasscode(run: (passcode: string) => Promise<void>) {
+    const passcode = getHostPasscode();
+    if (passcode) return run(passcode);
+    setPasscodeInput("");
+    setPasscodeError("");
+    setPasscodePrompt({ run });
+  }
+
+  async function submitPasscode(event: React.FormEvent) {
+    event.preventDefault();
+    if (!passcodePrompt) return;
+    setCheckingPasscode(true);
+    setPasscodeError("");
+    const { data, error } = await supabase.rpc("check_host_passcode", {
+      p_passcode: passcodeInput,
+    });
+    setCheckingPasscode(false);
+    if (error) {
+      setPasscodeError(hostRpcError(error));
+      return;
+    }
+    if (!data) {
+      setPasscodeError("That passcode is incorrect.");
+      return;
+    }
+    rememberHostPasscode(passcodeInput);
+    const pending = passcodePrompt;
+    setPasscodePrompt(null);
+    await pending.run(passcodeInput.trim().toUpperCase());
+  }
+
+  function confirmRemovePlayer(player: Participant) {
+    setConfirmation({
+      title: `Remove ${player.nickname}?`,
+      body: `${player.nickname} will be taken out of room ${selected?.join_code} and their answers deleted. They can rejoin with a new nickname while the room is open.`,
+      action: "Remove player",
+      run: () =>
+        withHostPasscode((passcode) =>
+          perform(async () => {
+            const { error } = await supabase.rpc("host_remove_participant", {
+              p_passcode: passcode,
+              p_participant_id: player.id,
+            });
+            return error ? { error: { message: hostRpcError(error) } } : undefined;
+          }, `${player.nickname} was removed from the room.`),
+        ),
+    });
+  }
+
+  function confirmRemoveAllPlayers() {
+    if (!selected) return;
+    const room = selected;
+    setConfirmation({
+      title: "Remove every player?",
+      body: `All ${playerCount} players in room ${room.join_code} and all their answers will be deleted. Your moments stay. Use this to clear test joins before the event.`,
+      action: "Remove all players",
+      run: () =>
+        withHostPasscode((passcode) =>
+          perform(async () => {
+            const { error } = await supabase.rpc("host_remove_all_participants", {
+              p_passcode: passcode,
+              p_session_id: room.id,
+            });
+            return error ? { error: { message: hostRpcError(error) } } : undefined;
+          }, `Room ${room.join_code} is empty. Every player was removed.`),
+        ),
+    });
+  }
+
   function handleLock() {
     lockHostStudio();
     void navigate({ to: "/auth" });
@@ -1020,7 +1103,18 @@ function StudioPage() {
                         Players ({playerCount})
                       </h3>
                     </div>
-                    <Users className="size-5 text-muted-foreground" />
+                    {playerCount > 0 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={confirmRemoveAllPlayers}
+                        disabled={working}
+                      >
+                        <UserX className="size-3.5" /> Remove all players
+                      </Button>
+                    ) : (
+                      <Users className="size-5 text-muted-foreground" />
+                    )}
                   </div>
 
                   {players.length === 0 ? (
@@ -1035,7 +1129,7 @@ function StudioPage() {
                         {players.map((player, index) => (
                           <li
                             key={player.id}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border border-border bg-card px-3 py-2.5 text-sm"
+                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border border-border bg-card py-1.5 pl-3 pr-1.5 text-sm"
                           >
                             <span className="font-display text-xs text-primary font-bold">
                               {String(index + 1).padStart(2, "0")}
@@ -1044,6 +1138,17 @@ function StudioPage() {
                             <span className="font-mono text-xs text-muted-foreground">
                               {player.score.toLocaleString()} pts
                             </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Remove ${player.nickname}`}
+                              title="Remove player"
+                              onClick={() => confirmRemovePlayer(player)}
+                              disabled={working}
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <UserX className="size-4" />
+                            </Button>
                           </li>
                         ))}
                       </ol>
@@ -1256,6 +1361,57 @@ function StudioPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Host passcode, checked by the database before removing players */}
+      <Dialog
+        open={passcodePrompt !== null}
+        onOpenChange={(open) => !open && setPasscodePrompt(null)}
+      >
+        <DialogContent className="border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl uppercase">
+              Confirm host passcode
+            </DialogTitle>
+            <DialogDescription>
+              Removing players is checked by the server. Enter the Host Studio passcode once for
+              this session.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitPasscode} className="space-y-4 pt-2">
+            <Input
+              type="password"
+              autoFocus
+              autoComplete="off"
+              value={passcodeInput}
+              onChange={(event) => setPasscodeInput(event.target.value)}
+              placeholder="Host passcode"
+              className="h-12 font-mono uppercase tracking-widest"
+              required
+            />
+            {passcodeError && (
+              <p
+                role="status"
+                className="border-l-2 border-secondary pl-3 text-sm text-muted-foreground"
+              >
+                {passcodeError}
+              </p>
+            )}
+            <Button
+              variant="broadcast"
+              size="lg"
+              className="w-full"
+              disabled={checkingPasscode || !passcodeInput.trim()}
+            >
+              {checkingPasscode ? (
+                <LoaderCircle className="size-5 animate-spin" />
+              ) : (
+                <Lock className="size-5" />
+              )}
+              Confirm
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirm destructive actions */}
       <AlertDialog
         open={confirmation !== null}
@@ -1452,6 +1608,18 @@ function EmptyStudio({ onCreate }: { onCreate: () => void }) {
       </Button>
     </div>
   );
+}
+
+/** Plain-language message for a failed host-only database call. */
+function hostRpcError(error: { code?: string; message: string }) {
+  if (error.code === "PGRST202") {
+    return "Removing players needs the latest database update. Ask Lovable to apply the pending Supabase migrations, then try again.";
+  }
+  if (error.code === "28P01") {
+    forgetHostPasscode();
+    return "The host passcode was not accepted. Try again and enter it when asked.";
+  }
+  return error.message;
 }
 
 function kindLabel(kind: Kind) {

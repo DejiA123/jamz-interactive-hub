@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const HOST_PASSCODE = "VIRTUALKEYS";
 const AUTH_KEY = "gj_host_passcode_auth";
+const PASSCODE_KEY = "gj_host_passcode";
 
 export function isHostAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
@@ -15,15 +16,36 @@ export function verifyAndSetHostPasscode(passcode: string): boolean {
   if (clean === HOST_PASSCODE) {
     sessionStorage.setItem(AUTH_KEY, "true");
     localStorage.setItem(AUTH_KEY, "true");
+    rememberHostPasscode(clean);
     return true;
   }
   return false;
+}
+
+/**
+ * The passcode typed in this tab, sent to the database for host-only changes such as
+ * removing players. Kept for the tab session only, never in long-lived storage.
+ */
+export function getHostPasscode(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(PASSCODE_KEY);
+}
+
+export function rememberHostPasscode(passcode: string): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(PASSCODE_KEY, passcode.trim().toUpperCase());
+}
+
+export function forgetHostPasscode(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(PASSCODE_KEY);
 }
 
 export function lockHostStudio(): void {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(AUTH_KEY);
   localStorage.removeItem(AUTH_KEY);
+  forgetHostPasscode();
 }
 
 // Local BroadcastChannel for instant zero-latency cross-tab updates

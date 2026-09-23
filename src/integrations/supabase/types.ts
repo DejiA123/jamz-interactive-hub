@@ -259,7 +259,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_host_passcode: { Args: { p_passcode: string }; Returns: boolean }
+      host_remove_all_participants: {
+        Args: { p_passcode: string; p_session_id: string }
+        Returns: number
+      }
+      host_remove_participant: {
+        Args: { p_participant_id: string; p_passcode: string }
+        Returns: boolean
+      }
     }
     Enums: {
       activity_kind: "quiz" | "poll" | "word_cloud" | "rating" | "challenge"
