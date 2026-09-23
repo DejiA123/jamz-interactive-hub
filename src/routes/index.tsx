@@ -199,7 +199,7 @@ function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 text-foreground selection:bg-primary selection:text-primary-foreground sm:pb-0">
+    <div className="min-h-screen bg-background pb-28 text-foreground selection:bg-primary selection:text-primary-foreground md:pb-0">
       <AppNavigation />
 
       <main>
@@ -543,7 +543,7 @@ function HomePage() {
         </section>
 
         {/* Programme Section */}
-        <section id="programme" className="px-5 py-14 lg:px-10 lg:py-20">
+        <section id="programme" className="scroll-mt-16 px-5 py-14 lg:px-10 lg:py-20">
           <div className="mx-auto max-w-7xl">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
               <div>

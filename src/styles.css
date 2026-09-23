@@ -178,8 +178,20 @@
   50% { opacity: .45; transform: scale(.82); }
 }
 
+@keyframes equalizer {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(.35); }
+}
+
+@keyframes signal-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+
 @utility animate-ticker { animation: ticker 28s linear infinite; }
 @utility animate-live { animation: live-pulse 1.8s ease-in-out infinite; }
+@utility animate-equalizer { animation: equalizer .9s ease-in-out infinite; }
+@utility animate-signal-ring { animation: signal-ring 2s ease-out infinite; }
 @utility chrome-edge { box-shadow: var(--shadow-chrome); }
 @utility stage-grid {
   background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);

@@ -191,7 +191,7 @@ function PlayPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 pt-16 text-foreground sm:pb-0">
+    <div className="min-h-screen bg-background pb-28 pt-16 text-foreground md:pb-0">
       <AppNavigation />
 
       <header className="border-b border-border px-5 py-4 lg:px-10 bg-card/60 backdrop-blur-md">
