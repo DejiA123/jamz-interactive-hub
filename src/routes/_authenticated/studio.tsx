@@ -140,12 +140,12 @@ const emptyDraft: Draft = {
 export const Route = createFileRoute("/_authenticated/studio")({
   head: () => ({
     meta: [
-      { title: "Host Studio — Gospel Jamz 2026" },
+      { title: "Host Studio — Gospel Jamz App" },
       {
         name: "description",
         content: "Create, arrange and run Gospel Jamz votes, questions, feedback and games.",
       },
-      { property: "og:title", content: "Host Studio — Gospel Jamz 2026" },
+      { property: "og:title", content: "Host Studio — Gospel Jamz App" },
       {
         property: "og:description",
         content: "Run every live Gospel Jamz interaction from one control room.",

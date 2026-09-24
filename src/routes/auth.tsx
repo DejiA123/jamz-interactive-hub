@@ -8,9 +8,9 @@ import { isHostAuthenticated, verifyAndSetHostPasscode } from "@/lib/live-sync";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Host Studio Access — Gospel Jamz 2026" },
+      { title: "Host Studio Access — Gospel Jamz App" },
       { name: "description", content: "Enter passcode to access Gospel Jamz Host Studio." },
-      { property: "og:title", content: "Host Studio Access — Gospel Jamz 2026" },
+      { property: "og:title", content: "Host Studio Access — Gospel Jamz App" },
       { property: "og:description", content: "Enter passcode to access Gospel Jamz Host Studio." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

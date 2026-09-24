@@ -73,10 +73,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Gospel Jamz 2026" },
+      { title: "Gospel Jamz App" },
       { name: "description", content: "Join live Gospel Jamz games, polls, word clouds and creative challenges." },
       { name: "author", content: "The Power House Int'l" },
-      { property: "og:title", content: "Gospel Jamz 2026" },
+      { property: "og:title", content: "Gospel Jamz App" },
       { property: "og:description", content: "The interactive Youth Conference Creative Arts Festival experience." },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/og-image.jpg" },

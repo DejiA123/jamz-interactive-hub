@@ -52,9 +52,9 @@ const moments = [
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Gospel Jamz 2026 — Join the Live Experience" },
+      { title: "Gospel Jamz App" },
       { name: "description", content: "Join Gospel Jamz live votes, panel questions, feedback and creative challenges with your event code." },
-      { property: "og:title", content: "Gospel Jamz 2026 — Join the Live Experience" },
+      { property: "og:title", content: "Gospel Jamz App" },
       { property: "og:description", content: "Youth Conference Creative Arts Festival, 16–18 October. To live is Christ." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -44,12 +44,12 @@ type Answers = Record<string, string | null>;
 export const Route = createFileRoute("/play/$code")({
   head: () => ({
     meta: [
-      { title: "Live Room — Gospel Jamz 2026" },
+      { title: "Live Room — Gospel Jamz App" },
       {
         name: "description",
         content: "Vote, ask questions, send encouragement and play in the live Gospel Jamz room.",
       },
-      { property: "og:title", content: "Gospel Jamz 2026 Live Room" },
+      { property: "og:title", content: "Live Room — Gospel Jamz App" },
       { property: "og:description", content: "Join the live audience experience from your seat." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
