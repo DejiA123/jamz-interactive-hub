@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
+  Circle,
+  CircleCheck,
   CircleStop,
   Clock3,
   Copy,
@@ -23,7 +25,9 @@ import {
   Trash2,
   UserX,
   Users,
+  X,
 } from "lucide-react";
+import { TimerBadge, TimerBar } from "@/components/moment-timer";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -61,6 +65,7 @@ import {
   rememberHostPasscode,
   useLiveSyncListener,
 } from "@/lib/live-sync";
+import { MOMENT_TYPES, isTimed, momentLabel, plural, useCountdown } from "@/lib/moments";
 import { fetchResponses, sortLiveMoments, uniqueTopic } from "@/lib/rooms";
 
 type Kind = Database["public"]["Enums"]["activity_kind"];
@@ -170,7 +175,7 @@ function StudioPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
-  const [eventTitle, setEventTitle] = useState("Gospel Jamz Live");
+  const [eventTitle, setEventTitle] = useState("");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [passcodePrompt, setPasscodePrompt] = useState<PasscodeRequest | null>(null);
@@ -301,6 +306,12 @@ function StudioPage() {
 
   useEffect(() => () => window.clearTimeout(reloadTimer.current), []);
 
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 8000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
   const liveIdsKey = liveMoments.map((moment) => moment.id).join(",");
   useEffect(() => {
     if (!selectedId) return;
@@ -412,6 +423,7 @@ function StudioPage() {
     }
 
     setCreateOpen(false);
+    setEventTitle("");
     broadcastLiveSync({
       type: "SESSION_UPDATED",
       sessionId: created.id,
@@ -486,12 +498,21 @@ function StudioPage() {
       }
 
       if (draft.kind === "quiz") {
+        // Without its answer a quiz can never award points, so the host has to know.
         const correct = savedOptions?.find((option) => option.position === draft.correctIndex);
-        if (correct) {
-          const { error: answerError } = await supabase
-            .from("activity_answers")
-            .insert({ activity_id: activity.id, correct_option_id: correct.id });
-          if (answerError) console.warn("Could not save answer:", answerError.message);
+        const { error: answerError } = correct
+          ? await supabase
+              .from("activity_answers")
+              .insert({ activity_id: activity.id, correct_option_id: correct.id })
+          : { error: { message: "No correct answer was marked." } };
+        if (answerError) {
+          setWorking(false);
+          setBuilderOpen(false);
+          await loadRoom(selected.id);
+          setMessage(
+            `"${activity.prompt}" was added, but its right answer didn't save (${answerError.message}), so nobody can win points. Remove it and add it again.`,
+          );
+          return;
         }
       }
     }
@@ -566,16 +587,26 @@ function StudioPage() {
       .eq("id", selected!.id);
   }
 
-  function closeRoom() {
-    return perform(
-      async () => {
-        const ended = await endAllMoments();
-        if (ended?.error) return ended;
-        return supabase.from("event_sessions").update({ status: "closed" }).eq("id", selected!.id);
-      },
-      "The room is closed. Players can't answer until you open it again.",
-      "ROOM_CLOSED",
-    );
+  function confirmCloseRoom() {
+    if (!selected) return;
+    setConfirmation({
+      title: "Close this room?",
+      body: `Every live moment ends and the ${plural(playerCount, "player")} in room ${selected.join_code} can't answer until you open it again. Nothing is deleted.`,
+      action: "Close room",
+      run: () =>
+        perform(
+          async () => {
+            const ended = await endAllMoments();
+            if (ended?.error) return ended;
+            return supabase
+              .from("event_sessions")
+              .update({ status: "closed" })
+              .eq("id", selected!.id);
+          },
+          "The room is closed. Players can't answer until you open it again.",
+          "ROOM_CLOSED",
+        ),
+    });
   }
 
   function openRoom() {
@@ -722,7 +753,7 @@ function StudioPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="truncate font-display text-lg uppercase">Host Studio</h1>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                <span className="hidden items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary sm:inline-flex">
                   Live Control
                 </span>
               </div>
@@ -871,7 +902,7 @@ function StudioPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => void closeRoom()}
+                        onClick={confirmCloseRoom}
                         disabled={working}
                       >
                         <CircleStop className="size-3.5" /> Close room
@@ -900,10 +931,11 @@ function StudioPage() {
                   </div>
                 </div>
 
+                {/* Pinned to the bottom so it never pushes buttons out from under the host's finger. */}
                 {message && (
                   <div
                     role="status"
-                    className="mt-5 flex items-center justify-between gap-3 border-l-2 border-primary bg-card px-4 py-3 text-sm"
+                    className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border border-border border-l-4 border-l-primary bg-card px-4 py-3 text-sm shadow-2xl"
                   >
                     <span>{message}</span>
                     <Button
@@ -1027,12 +1059,16 @@ function StudioPage() {
                               <p className="truncate font-semibold text-base">{activity.prompt}</p>
                               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs uppercase text-muted-foreground">
                                 <span className="font-semibold text-secondary">
-                                  {kindLabel(activity.kind)}
+                                  {momentLabel(activity.kind)}
                                 </span>
-                                <span>·</span>
-                                <span className="flex items-center gap-1">
-                                  <Clock3 className="size-3" /> {activity.duration_seconds}s
-                                </span>
+                                {isTimed(activity.kind) && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock3 className="size-3" /> {activity.duration_seconds}s
+                                    </span>
+                                  </>
+                                )}
                                 {activity.points > 0 && (
                                   <>
                                     <span>·</span>
@@ -1040,7 +1076,7 @@ function StudioPage() {
                                   </>
                                 )}
                                 <span>·</span>
-                                <span>{responseCounts[activity.id] ?? 0} responses</span>
+                                <span>{plural(responseCounts[activity.id] ?? 0, "response")}</span>
                                 {isLive && (
                                   <span className="inline-flex items-center gap-1 rounded bg-live/20 px-2 py-0.5 text-[10px] font-bold text-live">
                                     <span className="size-1.5 rounded-full bg-live animate-live" />{" "}
@@ -1239,18 +1275,16 @@ function StudioPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="poll">Audience Vote / Verdict (Poll)</SelectItem>
-                  <SelectItem value="quiz">Scored Pop Quiz</SelectItem>
-                  <SelectItem value="word_cloud">Live Questions & Word Wall</SelectItem>
-                  <SelectItem value="rating">Minister Feedback (Written Encouragement)</SelectItem>
-                  <SelectItem value="challenge">Open Audience Challenge</SelectItem>
+                  {MOMENT_TYPES.map((type) => (
+                    <SelectItem key={type.kind} value={type.kind}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {draft.kind === "rating" && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Each person writes a short message of encouragement for the minister.
-                </p>
-              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                {MOMENT_TYPES.find((type) => type.kind === draft.kind)?.hint}.
+              </p>
             </div>
 
             <div>
@@ -1271,37 +1305,79 @@ function StudioPage() {
             {(draft.kind === "poll" || draft.kind === "quiz") && (
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
-                  Answer Choices {draft.kind === "quiz" && "(click check to mark correct)"}
+                  Answer Choices{" "}
+                  {draft.kind === "quiz" && "(tap the circle next to the right answer)"}
                 </label>
                 <div className="space-y-2">
-                  {draft.options.map((option, index) => (
-                    <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                      <Input
-                        value={option}
-                        onChange={(event) =>
-                          setDraft({
-                            ...draft,
-                            options: draft.options.map((item, itemIndex) =>
-                              itemIndex === index ? event.target.value : item,
-                            ),
-                          })
-                        }
-                        required
-                        placeholder={`Option ${index + 1}`}
-                      />
-                      {draft.kind === "quiz" && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant={draft.correctIndex === index ? "signal" : "outline"}
-                          onClick={() => setDraft({ ...draft, correctIndex: index })}
-                          aria-label={`Mark option ${index + 1} correct`}
-                        >
-                          <Check className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                  {draft.options.map((option, index) => {
+                    const correct = draft.kind === "quiz" && draft.correctIndex === index;
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={option}
+                          onChange={(event) =>
+                            setDraft({
+                              ...draft,
+                              options: draft.options.map((item, itemIndex) =>
+                                itemIndex === index ? event.target.value : item,
+                              ),
+                            })
+                          }
+                          required
+                          placeholder={`Option ${index + 1}`}
+                          className={correct ? "border-live ring-1 ring-live" : ""}
+                        />
+                        {draft.kind === "quiz" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDraft({ ...draft, correctIndex: index })}
+                            aria-pressed={correct}
+                            aria-label={`Option ${index + 1} is the right answer`}
+                            className={`h-9 shrink-0 gap-1.5 px-2.5 text-xs ${
+                              correct
+                                ? "border-live bg-live text-background hover:bg-live/90 hover:text-background"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {correct ? (
+                              <CircleCheck className="size-4" />
+                            ) : (
+                              <Circle className="size-4" />
+                            )}
+                            {correct ? "Right" : "Wrong"}
+                          </Button>
+                        )}
+                        {draft.options.length > 2 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Remove option ${index + 1}`}
+                            title="Remove this option"
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() =>
+                              setDraft({
+                                ...draft,
+                                options: draft.options.filter(
+                                  (_, itemIndex) => itemIndex !== index,
+                                ),
+                                // Keep the same answer marked right after the list shifts up.
+                                correctIndex:
+                                  draft.correctIndex === index
+                                    ? 0
+                                    : draft.correctIndex > index
+                                      ? draft.correctIndex - 1
+                                      : draft.correctIndex,
+                              })
+                            }
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {draft.options.length < 6 && (
@@ -1318,19 +1394,30 @@ function StudioPage() {
               </div>
             )}
 
+            {!isTimed(draft.kind) && (
+              <p className="text-xs text-muted-foreground">
+                Stays open until you press End, so people have time to write.
+              </p>
+            )}
+
             <div className={draft.kind === "quiz" ? "grid grid-cols-2 gap-4" : ""}>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
-                  Time (seconds)
-                </label>
-                <Input
-                  type="number"
-                  min={5}
-                  max={600}
-                  value={draft.duration}
-                  onChange={(event) => setDraft({ ...draft, duration: Number(event.target.value) })}
-                />
-              </div>
+              {isTimed(draft.kind) && (
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
+                    Time to answer (seconds)
+                  </label>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={600}
+                    required
+                    value={draft.duration}
+                    onChange={(event) =>
+                      setDraft({ ...draft, duration: Number(event.target.value) })
+                    }
+                  />
+                </div>
+              )}
 
               {draft.kind === "quiz" && (
                 <div>
@@ -1460,12 +1547,14 @@ function LiveMonitor({
   onShowOnBigScreen: () => void;
   onEnd: () => void;
 }) {
+  const countdown = useCountdown(activity);
   return (
     <section className="flex flex-col border border-primary/40 bg-card p-5 sm:p-6 chrome-edge">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
           <span className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-live">
-            <span className="size-2 bg-live rounded-full animate-live" /> {kindLabel(activity.kind)}
+            <span className="size-2 bg-live rounded-full animate-live" />{" "}
+            {momentLabel(activity.kind)}
             {onBigScreen && (
               <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">
                 <Monitor className="size-3" /> On big screen
@@ -1475,14 +1564,19 @@ function LiveMonitor({
           <h4 className="mt-1 font-display text-xl uppercase leading-tight sm:text-2xl">
             {activity.prompt}
           </h4>
-          <p className="mt-0.5 text-xs uppercase text-muted-foreground">
-            Time: {activity.duration_seconds}s
-          </p>
+          <TimerBadge countdown={countdown} className="mt-1.5" />
         </div>
         <span className="rounded border border-border bg-background px-3 py-1.5 text-xs font-mono font-bold text-foreground">
-          {responses.length} responses
+          {plural(responses.length, "response")}
         </span>
       </div>
+      <TimerBar countdown={countdown} />
+      {countdown.expired && (
+        <p className="mt-4 border-l-2 border-secondary bg-secondary/10 px-3 py-2 text-xs font-semibold">
+          Time's up: phones no longer accept answers. Press End when you're ready, or Go live again
+          later to reopen it.
+        </p>
+      )}
 
       <div className="mt-5 flex-1">
         <MomentResults activity={activity} options={options} responses={responses} />
@@ -1620,14 +1714,4 @@ function hostRpcError(error: { code?: string; message: string }) {
     return "The host passcode was not accepted. Try again and enter it when asked.";
   }
   return error.message;
-}
-
-function kindLabel(kind: Kind) {
-  return {
-    quiz: "Quiz",
-    poll: "Verdict / Poll",
-    word_cloud: "Panel Questions",
-    rating: "Minister Feedback",
-    challenge: "Creative Challenge",
-  }[kind];
 }

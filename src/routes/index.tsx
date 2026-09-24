@@ -21,9 +21,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { TimerBadge, TimerBar } from "@/components/moment-timer";
 import { useLiveSyncListener } from "@/lib/live-sync";
+import { momentLabel, plural, useCountdown } from "@/lib/moments";
 import {
   fetchResponses,
+  friendlyJoinError,
+  nicknameProblem,
   rememberPlayer,
   sortLiveMoments,
   uniqueTopic,
@@ -32,7 +36,8 @@ import {
 import stageImage from "@/assets/gospel-jamz-stage.jpg";
 
 type Activity = Tables<"activities">;
-type Option = Tables<"activity_options">;
+/** Options without is_correct, so the big screen never gives away a quiz answer. */
+type Option = Pick<Tables<"activity_options">, "id" | "label" | "position">;
 type Participant = Tables<"participants">;
 type ResponseRow = Tables<"responses">;
 
@@ -128,7 +133,7 @@ function HomePage() {
 
     if (activeAct) {
       const [{ data: optData }, respData] = await Promise.all([
-        supabase.from("activity_options").select("*").eq("activity_id", activeAct.id).order("position"),
+        supabase.from("activity_options").select("id,label,position").eq("activity_id", activeAct.id).order("position"),
         fetchResponses([activeAct.id]),
       ]);
       setOptions(optData ?? []);
@@ -190,6 +195,9 @@ function HomePage() {
 
   useLiveSyncListener(scheduleReload);
 
+  // Only people who have won points belong on a points leaderboard.
+  const scoredLeaders = topLeaders.filter((leader) => leader.score > 0);
+
   async function requestJoin(overrideCode?: string) {
     const targetCode = overrideCode ?? code;
     if (targetCode.length !== 6) {
@@ -241,6 +249,13 @@ function HomePage() {
       return;
     }
 
+    const taken = await nicknameProblem(session.id, name);
+    if (taken) {
+      setJoining(false);
+      setMessage(taken);
+      return;
+    }
+
     const { data: participant, error } = await supabase
       .from("participants")
       .insert({ session_id: session.id, nickname: name })
@@ -249,7 +264,7 @@ function HomePage() {
 
     setJoining(false);
     if (error || !participant) {
-      setMessage(error?.message ?? "Could not join right now.");
+      setMessage(friendlyJoinError(error ?? { message: "" }));
       return;
     }
 
@@ -376,40 +391,40 @@ function HomePage() {
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase text-primary">
-                        {currentActivity ? `Live Interaction · ${kindLabel(currentActivity.kind)}` : "Live Interaction"}
+                        {currentActivity ? `Live Interaction · ${momentLabel(currentActivity.kind)}` : "Live Interaction"}
                       </p>
                       <h3 className="mt-2 font-display text-2xl uppercase leading-tight sm:text-3xl">
                         {currentActivity?.prompt ?? "Waiting for host to launch the next live moment…"}
                       </h3>
                     </div>
-                    <span
-                      className={`mt-1 size-2 rounded-full ${currentActivity ? "animate-live bg-live" : "bg-muted-foreground"}`}
-                    />
+                    {currentActivity ? (
+                      <BoardTimer activity={currentActivity} />
+                    ) : (
+                      <span className="mt-1 size-2 rounded-full bg-muted-foreground" />
+                    )}
                   </div>
+                  {currentActivity && <BoardTimerBar activity={currentActivity} />}
 
                   {/* Real Content for Current Activity */}
                   <div className="mt-6 min-h-64 flex flex-col justify-center">
                     {currentActivity?.kind === "word_cloud" && (
-                      <div className="flex flex-wrap content-center items-center justify-center gap-3 py-6 text-center">
+                      <div className="py-4">
                         {responses.length === 0 ? (
-                          <p className="text-sm italic text-muted-foreground">
-                            Audience words and questions will appear here live as they are submitted…
+                          <p className="text-center text-sm italic text-muted-foreground">
+                            Questions for the panel will appear here as they are sent…
                           </p>
                         ) : (
-                          responses.map((resp, i) => (
-                            <span
-                              key={resp.id}
-                              className={`font-display uppercase tracking-wider ${
-                                i % 3 === 0
-                                  ? "text-3xl text-primary sm:text-5xl"
-                                  : i % 2 === 0
-                                  ? "text-2xl text-secondary sm:text-4xl"
-                                  : "text-xl text-foreground sm:text-3xl"
-                              }`}
-                            >
-                              {resp.text_answer}
-                            </span>
-                          ))
+                          <ol className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                            {responses.map((resp) => (
+                              <li
+                                key={resp.id}
+                                className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border border-border bg-background p-3 text-base sm:text-lg"
+                              >
+                                <MessageCircleQuestion className="mt-1 size-5 text-primary" />
+                                <p className="text-foreground">{resp.text_answer}</p>
+                              </li>
+                            ))}
+                          </ol>
                         )}
                       </div>
                     )}
@@ -429,7 +444,7 @@ function HomePage() {
                                   {option.label}
                                 </span>
                                 <span className="font-mono text-muted-foreground">
-                                  {count} votes ({pct}%)
+                                  {plural(count, "vote")} ({pct}%)
                                 </span>
                               </div>
                               <div className="h-3 w-full bg-muted overflow-hidden">
@@ -485,7 +500,7 @@ function HomePage() {
                 </div>
 
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] border-t border-border pt-4 text-sm text-muted-foreground items-center">
-                  <span>{responses.length} real responses received</span>
+                  <span>{currentActivity ? `${plural(responses.length, "response")} so far` : ""}</span>
                   <Button
                     variant="broadcast"
                     size="sm"
@@ -526,9 +541,12 @@ function HomePage() {
                           <span className="font-display">{String(index + 1).padStart(2, "0")}</span>
                           <span className="flex min-w-0 items-center gap-2">
                             {isLive && <span className="size-1.5 shrink-0 rounded-full bg-live animate-live" />}
-                            <span className="truncate">{act.prompt}</span>
+                            <span className="truncate">
+                              {/* Don't give quiz questions away before they're asked. */}
+                              {act.kind === "quiz" && !isLive ? "Quiz question, revealed when it goes live" : act.prompt}
+                            </span>
                           </span>
-                          <span className="uppercase text-[10px]">{kindLabel(act.kind)}</span>
+                          <span className="uppercase text-[10px]">{momentLabel(act.kind)}</span>
                         </div>
                       );
                     })
@@ -542,15 +560,14 @@ function HomePage() {
                   <h3 className="font-display text-xl uppercase">Top Participants</h3>
                   <Trophy className="text-secondary size-5" />
                 </div>
-                {topLeaders.length === 0 ? (
+                {scoredLeaders.length === 0 ? (
                   <p className="mt-6 text-xs text-muted-foreground italic py-4 text-center">
-                    No scored participants yet. Join live to put your name on the board!
+                    No points yet. Get a quiz question right to put your name on the board!
                   </p>
                 ) : (
                   <ol className="mt-6 space-y-3">
-                    {topLeaders.map((leader, index) => {
-                      const maxScore = topLeaders[0]?.score || 1;
-                      const pct = Math.max(15, Math.round((leader.score / maxScore) * 100));
+                    {scoredLeaders.map((leader, index) => {
+                      const pct = Math.round((leader.score / (scoredLeaders[0]?.score ?? leader.score)) * 100);
                       return (
                         <li key={leader.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 items-center">
                           <span className="font-display text-sm text-primary font-bold">
@@ -719,12 +736,16 @@ function HomePage() {
   );
 }
 
-function kindLabel(kind: string) {
-  return {
-    quiz: "Quiz",
-    poll: "Verdict / Poll",
-    word_cloud: "Word Cloud",
-    rating: "Feedback",
-    challenge: "Challenge",
-  }[kind] ?? kind;
+function BoardTimer({ activity }: { activity: Activity }) {
+  const countdown = useCountdown(activity);
+  return countdown.timed ? (
+    <TimerBadge countdown={countdown} className="text-lg" />
+  ) : (
+    <span className="mt-1 size-2 rounded-full animate-live bg-live" />
+  );
+}
+
+function BoardTimerBar({ activity }: { activity: Activity }) {
+  const countdown = useCountdown(activity);
+  return <TimerBar countdown={countdown} className="mt-4" />;
 }

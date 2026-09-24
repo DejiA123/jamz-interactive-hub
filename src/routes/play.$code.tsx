@@ -10,6 +10,7 @@ import {
   Mic2,
   Radio,
   Send,
+  Sparkles,
   Trophy,
   Users,
 } from "lucide-react";
@@ -26,9 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { TimerBadge, TimerBar } from "@/components/moment-timer";
 import { useLiveSyncListener } from "@/lib/live-sync";
+import { momentLabel, plural, useCountdown } from "@/lib/moments";
 import {
+  friendlyJoinError,
   friendlyWriteError,
+  nicknameProblem,
   rememberPlayer,
   sortLiveMoments,
   uniqueTopic,
@@ -36,10 +41,12 @@ import {
 } from "@/lib/rooms";
 
 type Activity = Tables<"activities">;
-type Option = Tables<"activity_options">;
+/** Options without is_correct, so the right quiz answer never reaches players' phones. */
+type Option = Pick<Tables<"activity_options">, "id" | "activity_id" | "label" | "position">;
 type Participant = Pick<Tables<"participants">, "id" | "nickname" | "score">;
-/** The option picked (null for text answers) for each moment this player has answered. */
-type Answers = Record<string, string | null>;
+/** The option picked (null for text answers) and points won for a moment this player answered. */
+type Answer = { optionId: string | null; points: number };
+type Answers = Record<string, Answer>;
 
 export const Route = createFileRoute("/play/$code")({
   head: () => ({
@@ -69,6 +76,10 @@ function PlayPage() {
   const [playerCount, setPlayerCount] = useState(0);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [participantNickname, setParticipantNickname] = useState("");
+  const [participantScore, setParticipantScore] = useState(0);
+  const [closedNotice, setClosedNotice] = useState("");
+  /** Prompts of the moments on screen, to notice ones the host ends before this player answers. */
+  const shownMoments = useRef(new Map<string, string>());
 
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -96,6 +107,7 @@ function PlayPage() {
     const player = await verifyStoredPlayer(room.id);
     setParticipantId(player?.id ?? null);
     setParticipantNickname(player?.nickname ?? "");
+    setParticipantScore(player?.score ?? 0);
     if (!player && room.status === "live" && !promptedForName.current) {
       promptedForName.current = true;
       setJoinModalOpen(true);
@@ -124,7 +136,7 @@ function PlayPage() {
       ids.length
         ? supabase
             .from("activity_options")
-            .select("*")
+            .select("id,activity_id,label,position")
             .in("activity_id", ids)
             .order("position")
             .then(({ data }) => data ?? [])
@@ -132,11 +144,13 @@ function PlayPage() {
       ids.length && player
         ? supabase
             .from("responses")
-            .select("activity_id,option_id")
+            .select("activity_id,option_id,points_awarded")
             .eq("participant_id", player.id)
             .in("activity_id", ids)
             .then(({ data }) => data ?? [])
-        : Promise.resolve([] as { activity_id: string; option_id: string | null }[]),
+        : Promise.resolve(
+            [] as { activity_id: string; option_id: string | null; points_awarded: number }[],
+          ),
     ]);
 
     const grouped: Record<string, Option[]> = {};
@@ -144,9 +158,28 @@ function PlayPage() {
       (grouped[option.activity_id] ??= []).push(option);
     }
 
+    // A moment the host ended before this player answered vanishes from the screen, taking any
+    // half-typed answer with it, so say what happened.
+    const liveIds = new Set(ids);
+    const answeredIds = new Set(answerRows.map((row) => row.activity_id));
+    const [endedUnanswered] = [...shownMoments.current].filter(
+      ([id]) => !liveIds.has(id) && !answeredIds.has(id),
+    );
+    shownMoments.current = new Map(live.map((moment) => [moment.id, moment.prompt]));
+    if (player && room.status === "live" && endedUnanswered) {
+      setClosedNotice(`The host closed "${endedUnanswered[1]}" before your answer was sent.`);
+    }
+
     setLiveMoments(live);
     setOptionsByMoment(grouped);
-    setAnswers(Object.fromEntries(answerRows.map((row) => [row.activity_id, row.option_id])));
+    setAnswers(
+      Object.fromEntries(
+        answerRows.map((row) => [
+          row.activity_id,
+          { optionId: row.option_id, points: row.points_awarded },
+        ]),
+      ),
+    );
     setLeaders(people ?? []);
     setPlayerCount(count ?? people?.length ?? 0);
     setBusy(false);
@@ -209,12 +242,25 @@ function PlayPage() {
 
   useLiveSyncListener(scheduleReload);
 
+  useEffect(() => {
+    if (!closedNotice) return;
+    const timer = window.setTimeout(() => setClosedNotice(""), 12000);
+    return () => window.clearTimeout(timer);
+  }, [closedNotice]);
+
   async function joinInPlace(event: React.FormEvent) {
     event.preventDefault();
     const nickname = nicknameInput.trim();
     if (!session || nickname.length < 2) return;
     setJoining(true);
     setJoinError("");
+
+    const taken = await nicknameProblem(session.id, nickname);
+    if (taken) {
+      setJoining(false);
+      setJoinError(taken);
+      return;
+    }
 
     const { data: participant, error } = await supabase
       .from("participants")
@@ -224,17 +270,14 @@ function PlayPage() {
 
     setJoining(false);
     if (error || !participant) {
-      setJoinError(
-        error && /row-level security/i.test(error.message)
-          ? "This room isn't open right now. Ask the host to open it."
-          : (error?.message ?? "Could not register nickname."),
-      );
+      setJoinError(friendlyJoinError(error ?? { message: "" }));
       return;
     }
 
     rememberPlayer(session.id, { id: participant.id, nickname });
     setParticipantId(participant.id);
     setParticipantNickname(nickname);
+    setParticipantScore(0);
     setJoinModalOpen(false);
     void loadRoom();
   }
@@ -264,23 +307,34 @@ function PlayPage() {
                 {notFound ? "Room not found" : (session?.title ?? "Gospel Jamz Live")}
               </p>
               <p className="text-xs uppercase text-muted-foreground flex items-center gap-2">
-                <span>Room {code}</span>
+                <span className="shrink-0 whitespace-nowrap">Room {code}</span>
                 {participantNickname && (
                   <>
                     <span>·</span>
-                    <span className="text-primary font-semibold">
-                      Playing as {participantNickname}
+                    <span className="min-w-0 truncate text-primary font-semibold">
+                      <span className="hidden sm:inline">Playing as </span>
+                      {participantNickname}
                     </span>
                   </>
                 )}
               </p>
             </div>
           </div>
-          <Button asChild variant="ghost" size="icon" aria-label="Leave room">
-            <Link to="/">
-              <ArrowLeft className="size-5" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {participantId && (
+              <span
+                className="inline-flex items-center gap-1.5 border border-secondary/40 bg-secondary/10 px-2.5 py-1 font-mono text-sm font-bold text-secondary"
+                aria-label={`Your score: ${plural(participantScore, "point")}`}
+              >
+                <Trophy className="size-4" /> {participantScore.toLocaleString()} pts
+              </span>
+            )}
+            <Button asChild variant="ghost" size="icon" aria-label="Leave room">
+              <Link to="/">
+                <ArrowLeft className="size-5" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -292,6 +346,18 @@ function PlayPage() {
                 <span>Enter your nickname so your votes and answers count on the board.</span>
                 <Button size="sm" variant="broadcast" onClick={() => setJoinModalOpen(true)}>
                   Set Nickname
+                </Button>
+              </div>
+            )}
+
+            {roomOpen && closedNotice && (
+              <div
+                role="status"
+                className="mb-6 flex items-center justify-between gap-3 border-l-2 border-secondary bg-card p-4 text-sm"
+              >
+                <span>{closedNotice} Watch for the next one.</span>
+                <Button size="sm" variant="ghost" onClick={() => setClosedNotice("")}>
+                  OK
                 </Button>
               </div>
             )}
@@ -327,9 +393,11 @@ function PlayPage() {
                     participantId={participantId}
                     stacked={liveMoments.length > 1}
                     first={index === 0}
-                    onAnswered={(optionId) =>
-                      setAnswers((current) => ({ ...current, [moment.id]: optionId }))
-                    }
+                    onAnswered={(answer) => {
+                      setAnswers((current) => ({ ...current, [moment.id]: answer }));
+                      setParticipantScore((score) => score + answer.points);
+                    }}
+                    onAlreadyAnswered={scheduleReload}
                   />
                 ))}
               </div>
@@ -367,7 +435,7 @@ function PlayPage() {
                       )}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {person.score.toLocaleString()}
+                      {person.score.toLocaleString()} pts
                     </span>
                   </li>
                 ))
@@ -376,11 +444,12 @@ function PlayPage() {
 
             <div className="mt-10 border-t border-border pt-6">
               <p className="flex items-center gap-2 text-xs uppercase text-secondary font-bold">
-                <Trophy className="size-4" /> Every voice matters
+                <Trophy className="size-4" /> How points work
               </p>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Keep this screen open. When the host launches the next vote, question, or challenge,
-                it appears here automatically.
+                Get a quiz question right to win its points. Votes, questions and messages don't
+                score, but every voice counts. Keep this screen open: the next moment appears here
+                automatically.
               </p>
             </div>
           </aside>
@@ -443,55 +512,78 @@ function LiveMoment({
   stacked,
   first,
   onAnswered,
+  onAlreadyAnswered,
 }: {
   activity: Activity;
   options: Option[];
-  answer: string | null | undefined;
+  answer: Answer | undefined;
   participantId: string | null;
   stacked: boolean;
   first: boolean;
-  onAnswered: (optionId: string | null) => void;
+  onAnswered: (answer: Answer) => void;
+  onAlreadyAnswered: () => void;
 }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const countdown = useCountdown(activity);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const justSent = useRef(false);
 
   const sent = answer !== undefined;
-  const locked = sent || sending || !participantId;
+  const timesUp = countdown.expired && !sent;
+  const locked = sent || sending || !participantId || timesUp;
   const verdict = activity.kind === "poll" && options.length === 2;
   const feedback = activity.kind === "rating";
   const maxLength = feedback ? 280 : 180;
   const Heading = first ? "h1" : "h2";
 
+  // Bring the confirmation into view: on phones it can land behind the bottom navigation.
+  useEffect(() => {
+    if (!sent || !justSent.current) return;
+    justSent.current = false;
+    statusRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [sent]);
+
   async function submit(payload: { option_id?: string; text_answer?: string }) {
-    if (!participantId || sent) return;
+    if (!participantId || sent || timesUp) return;
     setSending(true);
     setError("");
 
-    const { error: insertError } = await supabase.from("responses").insert({
-      activity_id: activity.id,
-      participant_id: participantId,
-      ...payload,
-    });
+    const { data, error: insertError } = await supabase
+      .from("responses")
+      .insert({ activity_id: activity.id, participant_id: participantId, ...payload })
+      .select("points_awarded")
+      .single();
 
     setSending(false);
-    if (insertError && insertError.code !== "23505") {
+    if (insertError?.code === "23505") {
+      onAlreadyAnswered();
+      return;
+    }
+    if (insertError) {
       setError(friendlyWriteError(insertError));
       return;
     }
-    onAnswered(payload.option_id ?? null);
+    justSent.current = true;
+    onAnswered({ optionId: payload.option_id ?? null, points: data?.points_awarded ?? 0 });
   }
 
   return (
     <article className={first ? "" : "mt-12 border-t border-border pt-12"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-xs font-semibold uppercase text-primary">
-          <Radio className="size-4 animate-live text-live" /> Live now · {labelFor(activity.kind)}
+          <Radio className="size-4 animate-live text-live" /> Live now ·{" "}
+          {momentLabel(activity.kind)}
+          {activity.kind === "quiz" && activity.points > 0 && (
+            <span className="border border-secondary/40 bg-secondary/10 px-1.5 py-0.5 text-[10px] text-secondary">
+              Worth {plural(activity.points, "pt")}
+            </span>
+          )}
         </p>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock3 className="size-3.5" /> {activity.duration_seconds} sec
-        </span>
+        {!sent && <TimerBadge countdown={countdown} />}
       </div>
+      {!sent && <TimerBar countdown={countdown} className="mt-3" />}
 
       <Heading
         className={
@@ -507,7 +599,7 @@ function LiveMoment({
         {(activity.kind === "quiz" || activity.kind === "poll") && (
           <div className={verdict ? "grid gap-4 sm:grid-cols-2" : "grid gap-3"}>
             {options.map((option, index) => {
-              const chosen = answer === option.id;
+              const chosen = answer?.optionId === option.id;
               return (
                 <Button
                   key={option.id}
@@ -554,7 +646,7 @@ function LiveMoment({
                 feedback
                   ? "Write a word of encouragement for the minister…"
                   : activity.kind === "word_cloud"
-                    ? "Type your question or response for the stage…"
+                    ? "Type your question for the panel…"
                     : "Type your answer…"
               }
               className="min-h-36 bg-card p-4 text-base"
@@ -565,7 +657,11 @@ function LiveMoment({
               </span>
               <Button variant="broadcast" disabled={locked || text.trim().length < 2}>
                 {feedback ? <Heart className="size-3.5" /> : <Send className="size-3.5" />}
-                {feedback ? "Send encouragement" : "Send to stage"}
+                {feedback
+                  ? "Send encouragement"
+                  : activity.kind === "word_cloud"
+                    ? "Send question"
+                    : "Send answer"}
               </Button>
             </div>
           </form>
@@ -579,20 +675,63 @@ function LiveMoment({
         >
           {error}
         </div>
+      ) : sent ? (
+        <div ref={statusRef} role="status" className="mt-6 scroll-mb-28">
+          <AnswerStatus activity={activity} answer={answer} />
+        </div>
       ) : (
-        sent && (
+        timesUp && (
           <div
             role="status"
-            className="mt-6 flex items-center gap-3 border-l-2 border-primary bg-card p-4 text-sm font-semibold"
+            className="mt-6 flex items-center gap-3 border-l-2 border-secondary bg-card p-4 text-sm font-semibold"
           >
-            <Check className="size-5 text-primary" />
-            {feedback
-              ? "Your encouragement has been shared with the stage."
-              : "Your voice is counted on the live board."}
+            <Clock3 className="size-5 text-secondary" />
+            Time's up! Get ready for the next one.
           </div>
         )
       )}
     </article>
+  );
+}
+
+/** What happened to this player's answer, in words that fit the moment. */
+function AnswerStatus({ activity, answer }: { activity: Activity; answer: Answer }) {
+  if (activity.kind === "quiz") {
+    return answer.points > 0 ? (
+      <div className="flex items-center gap-3 border-l-4 border-live bg-live/10 p-4">
+        <Trophy className="size-7 shrink-0 text-live" />
+        <div>
+          <p className="font-display text-xl uppercase text-live">Correct!</p>
+          <p className="text-sm font-semibold">
+            +{plural(answer.points, "point")} added to your score.
+          </p>
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center gap-3 border-l-4 border-secondary bg-card p-4">
+        <Sparkles className="size-7 shrink-0 text-secondary" />
+        <div>
+          <p className="font-display text-xl uppercase text-secondary">Not this time</p>
+          <p className="text-sm font-semibold">
+            Your answer is locked in. Get ready for the next one!
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const message = {
+    poll: "Vote counted! Watch the big screen for the result.",
+    word_cloud: "Question sent to the panel.",
+    rating: "Your encouragement has been sent to the minister.",
+    challenge: "Answer sent to the stage.",
+  }[activity.kind];
+
+  return (
+    <div className="flex items-center gap-3 border-l-2 border-primary bg-card p-4 text-sm font-semibold">
+      <Check className="size-5 shrink-0 text-primary" />
+      {message}
+    </div>
   );
 }
 
@@ -627,17 +766,5 @@ function RoomState({
       <h1 className="mt-5 max-w-[14ch] font-display text-4xl uppercase sm:text-6xl">{title}</h1>
       <p className="mt-5 max-w-[48ch] text-muted-foreground leading-relaxed">{body}</p>
     </div>
-  );
-}
-
-function labelFor(kind: Activity["kind"]) {
-  return (
-    {
-      quiz: "Quiz",
-      poll: "Audience Verdict",
-      word_cloud: "Panel Questions",
-      rating: "Minister Feedback",
-      challenge: "Creative Challenge",
-    }[kind] ?? kind
   );
 }

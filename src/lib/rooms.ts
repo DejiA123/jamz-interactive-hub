@@ -89,12 +89,14 @@ export function forgetPlayer(sessionId: string) {
 }
 
 /** The stored player for this room, if the host hasn't removed them. */
-export async function verifyStoredPlayer(sessionId: string): Promise<StoredPlayer | null> {
+export async function verifyStoredPlayer(
+  sessionId: string,
+): Promise<(StoredPlayer & { score: number }) | null> {
   const stored = readStoredPlayer(sessionId);
   if (!stored) return null;
   const { data } = await supabase
     .from("participants")
-    .select("id,nickname")
+    .select("id,nickname,score")
     .eq("id", stored.id)
     .eq("session_id", sessionId)
     .maybeSingle();
@@ -103,6 +105,27 @@ export async function verifyStoredPlayer(sessionId: string): Promise<StoredPlaye
     return null;
   }
   return data;
+}
+
+/**
+ * Why this nickname can't be used in the room, or null if it's free. Two people with the same
+ * name can't tell themselves apart on the leaderboard.
+ */
+export async function nicknameProblem(sessionId: string, nickname: string) {
+  const { data } = await supabase
+    .from("participants")
+    .select("nickname")
+    .eq("session_id", sessionId);
+  const wanted = nickname.trim().toLowerCase();
+  if (!data?.some((row) => row.nickname.trim().toLowerCase() === wanted)) return null;
+  return `Someone in this room is already called "${nickname.trim()}". Add an initial or a number, like "${nickname.trim()} B".`;
+}
+
+/** Plain-language message for a failed join. */
+export function friendlyJoinError(error: { message: string }) {
+  return /row-level security/i.test(error.message)
+    ? "This room isn't open right now. Ask the host to open it."
+    : "We couldn't add you to the room. Check your connection and try again.";
 }
 
 /** Plain-language message for a failed audience write. */
