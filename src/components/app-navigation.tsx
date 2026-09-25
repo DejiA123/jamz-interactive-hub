@@ -66,6 +66,7 @@ export function AppNavigation() {
   const homeActive = pathname === "/" && !programmeInView;
   const programmeActive = pathname === "/" && programmeInView;
   const joinActive = pathname.startsWith("/play/");
+  const hostActive = pathname.startsWith("/studio") || pathname.startsWith("/auth");
   const islandSurface = scrolled ? "bg-background/80" : "bg-background/55";
 
   return (
@@ -130,7 +131,9 @@ export function AppNavigation() {
 
           <Link
             to="/auth"
-            className="group pointer-events-auto relative hidden h-12 items-center gap-2 justify-self-end overflow-hidden rounded-xl bg-primary px-5 font-display text-sm uppercase text-primary-foreground shadow-[0_0_32px_-6px_var(--primary)] transition-[background-color,box-shadow] duration-300 hover:bg-secondary hover:shadow-[0_0_32px_-6px_var(--secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px md:inline-flex"
+            data-active={hostActive}
+            aria-current={hostActive ? "page" : undefined}
+            className="group pointer-events-auto relative hidden h-12 items-center gap-2 justify-self-end overflow-hidden rounded-xl bg-primary px-5 font-display text-sm uppercase text-primary-foreground shadow-[0_0_32px_-6px_var(--primary)] transition-[background-color,box-shadow] duration-300 hover:bg-secondary hover:shadow-[0_0_32px_-6px_var(--secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px data-[active=true]:ring-2 data-[active=true]:ring-foreground/70 data-[active=true]:ring-offset-2 data-[active=true]:ring-offset-background md:inline-flex"
           >
             <span
               aria-hidden
@@ -190,7 +193,12 @@ export function AppNavigation() {
             Join Live
           </JoinLink>
 
-          <Link to="/auth" className={dockItem}>
+          <Link
+            to="/auth"
+            data-active={hostActive}
+            aria-current={hostActive ? "page" : undefined}
+            className={dockItem}
+          >
             <Spotlight />
             <Radio />
             Host

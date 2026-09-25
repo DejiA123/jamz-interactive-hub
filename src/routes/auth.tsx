@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Check, KeyRound, LoaderCircle, Lock, Radio, ShieldCheck } from "lucide-react";
+import { AppNavigation } from "@/components/app-navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isHostAuthenticated, verifyAndSetHostPasscode } from "@/lib/live-sync";
@@ -50,7 +51,8 @@ function AuthPage() {
   }
 
   return (
-    <main className="stage-grid flex min-h-screen items-center justify-center px-5 py-12">
+    <main className="stage-grid flex min-h-screen items-center justify-center px-5 pb-28 pt-24 md:pb-12">
+      <AppNavigation />
       <div className="w-full max-w-md border border-border bg-card p-7 chrome-edge sm:p-9">
         <Link
           to="/"

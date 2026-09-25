@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AppNavigation } from "@/components/app-navigation";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Tables } from "@/integrations/supabase/types";
 import {
@@ -743,8 +744,10 @@ function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border px-5 py-4 lg:px-10 bg-card/60 backdrop-blur-md sticky top-0 z-30">
+    <div className="min-h-screen bg-background pb-28 pt-16 text-foreground md:pb-0">
+      <AppNavigation />
+
+      <header className="border-b border-border px-5 py-4 lg:px-10 bg-card/60 backdrop-blur-md">
         <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center bg-primary text-primary-foreground">
@@ -935,7 +938,7 @@ function StudioPage() {
                 {message && (
                   <div
                     role="status"
-                    className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border border-border border-l-4 border-l-primary bg-card px-4 py-3 text-sm shadow-2xl"
+                    className="fixed inset-x-3 bottom-24 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border border-border border-l-4 border-l-primary bg-card px-4 py-3 text-sm shadow-2xl md:bottom-3"
                   >
                     <span>{message}</span>
                     <Button
