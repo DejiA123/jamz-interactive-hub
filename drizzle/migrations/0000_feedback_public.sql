@@ -1,0 +1,2 @@
+ALTER TABLE public.activities ADD COLUMN IF NOT EXISTS feedback_public boolean NOT NULL DEFAULT false;
+ALTER TABLE public.activities ADD COLUMN IF NOT EXISTS is_feedback_round boolean NOT NULL DEFAULT false;

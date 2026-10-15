@@ -18,7 +18,9 @@ export type Database = {
         Row: {
           created_at: string
           duration_seconds: number
+          feedback_public: boolean
           id: string
+          is_feedback_round: boolean
           is_published: boolean
           kind: Database["public"]["Enums"]["activity_kind"]
           points: number
@@ -30,7 +32,9 @@ export type Database = {
         Insert: {
           created_at?: string
           duration_seconds?: number
+          feedback_public?: boolean
           id?: string
+          is_feedback_round?: boolean
           is_published?: boolean
           kind: Database["public"]["Enums"]["activity_kind"]
           points?: number
@@ -42,7 +46,9 @@ export type Database = {
         Update: {
           created_at?: string
           duration_seconds?: number
+          feedback_public?: boolean
           id?: string
+          is_feedback_round?: boolean
           is_published?: boolean
           kind?: Database["public"]["Enums"]["activity_kind"]
           points?: number
