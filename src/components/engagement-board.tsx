@@ -98,7 +98,7 @@ export function EngagementBoard({
                     {row.count} {row.count === 1 ? "response" : "responses"}
                   </span>
                 </div>
-                <div className={`mt-1 h-1 bg-muted ${medal ? "ml-9" : "ml-9"}`}>
+                <div className="ml-9 mt-1 h-1 bg-muted">
                   <div
                     className={`h-1 ${medal ? medal.bar : "bg-muted-foreground/40"}`}
                     style={{ width: `${(row.count / top) * 100}%` }}
