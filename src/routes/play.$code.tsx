@@ -498,6 +498,12 @@ function PlayPage() {
               )}
             </ol>
 
+            {session?.show_engagement && (
+              <div className="mt-10 border-t border-border pt-6">
+                <EngagementBoard sessionId={session.id} highlightId={participantId} />
+              </div>
+            )}
+
             <div className="mt-10 border-t border-border pt-6">
               <p className="flex items-center gap-2 text-xs uppercase text-secondary font-bold">
                 <Trophy className="size-4" /> How points work
