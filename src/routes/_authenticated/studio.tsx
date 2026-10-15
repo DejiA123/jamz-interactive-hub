@@ -1302,6 +1302,15 @@ function StudioPage() {
                                 >
                                   <Copy className="size-3.5" /> Copy all
                                 </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={working || isLive}
+                                  title={isLive ? "End the live round before deleting" : "Delete this saved feedback"}
+                                  onClick={() => void deleteFeedbackRound(round)}
+                                >
+                                  <Trash2 className="size-3.5" /> Delete
+                                </Button>
                               </div>
                             </div>
                             {texts.length > 0 && (
