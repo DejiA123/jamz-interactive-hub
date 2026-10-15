@@ -33,12 +33,12 @@ function AuthPage() {
     }
   }, [navigate]);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     setBusy(true);
 
-    const isValid = verifyAndSetHostPasscode(passcode);
+    const isValid = await verifyAndSetHostPasscode(passcode);
     if (isValid) {
       setUnlocked(true);
       setTimeout(() => {

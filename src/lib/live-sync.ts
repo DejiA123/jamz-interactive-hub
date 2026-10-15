@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export const HOST_PASSCODE = "VIRTUALKEYS";
 const AUTH_KEY = "gj_host_passcode_auth";
 const PASSCODE_KEY = "gj_host_passcode";
 
@@ -10,16 +9,17 @@ export function isHostAuthenticated(): boolean {
   return sessionStorage.getItem(AUTH_KEY) === "true" || localStorage.getItem(AUTH_KEY) === "true";
 }
 
-export function verifyAndSetHostPasscode(passcode: string): boolean {
+/** Checks the passcode against the one saved in the backend. */
+export async function verifyAndSetHostPasscode(passcode: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const clean = passcode.trim().toUpperCase();
-  if (clean === HOST_PASSCODE) {
-    sessionStorage.setItem(AUTH_KEY, "true");
-    localStorage.setItem(AUTH_KEY, "true");
-    rememberHostPasscode(clean);
-    return true;
-  }
-  return false;
+  if (!clean) return false;
+  const { data, error } = await supabase.rpc("check_host_passcode", { p_passcode: clean });
+  if (error || data !== true) return false;
+  sessionStorage.setItem(AUTH_KEY, "true");
+  localStorage.setItem(AUTH_KEY, "true");
+  rememberHostPasscode(clean);
+  return true;
 }
 
 /**
