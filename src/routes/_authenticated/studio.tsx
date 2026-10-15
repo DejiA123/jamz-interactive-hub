@@ -635,6 +635,27 @@ function StudioPage() {
     if (selected) await loadRoom(selected.id);
   }
 
+  async function deleteFeedbackRound(round: Activity) {
+    const name = optionsMap[round.id]?.[0]?.label ?? "this minister";
+    if (!window.confirm(`Delete the saved feedback for ${name}? This cannot be undone.`)) return;
+    setWorking(true);
+    const responsesError = (
+      await supabase.from("responses").delete().eq("activity_id", round.id)
+    ).error;
+    const activityError = responsesError
+      ? null
+      : (await supabase.from("activities").delete().eq("id", round.id)).error;
+    setWorking(false);
+    const failed = responsesError ?? activityError;
+    if (failed) {
+      setMessage(`Could not delete feedback: ${failed.message}`);
+      return;
+    }
+    broadcastLiveSync({ type: "SESSION_UPDATED", sessionId: selected?.id ?? "" });
+    if (selected) await loadRoom(selected.id);
+    setMessage(`Deleted the saved feedback for ${name}.`);
+  }
+
   // Minister feedback is saved automatically: when a feedback moment ends,
   // its messages stay stored so the minister can read them afterwards.
   function endMoment(activity: Activity) {
