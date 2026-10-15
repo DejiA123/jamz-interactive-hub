@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
+import { Crown, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchResponses } from "@/lib/rooms";
 
 type Row = { id: string; nickname: string; count: number };
+
+const MEDALS = [
+  { badge: "bg-medal-gold", bar: "bg-medal-gold" },
+  { badge: "bg-medal-silver", bar: "bg-medal-silver" },
+  { badge: "bg-medal-bronze", bar: "bg-medal-bronze" },
+] as const;
 
 /** People ranked by how many times they took part (votes, answers, questions, feedback). */
 export function EngagementBoard({
@@ -56,27 +62,51 @@ export function EngagementBoard({
         <p className="mt-4 text-xs italic text-muted-foreground">No one has taken part yet.</p>
       ) : (
         <ol className="mt-4 space-y-3">
-          {rows.map((row, index) => (
-            <li key={row.id}>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate font-semibold">
-                  <span className="mr-2 font-display text-xs text-secondary">
-                    {String(index + 1).padStart(2, "0")}
+          {rows.map((row, index) => {
+            const medal = index < 3 ? MEDALS[index] : null;
+            return (
+              <li
+                key={row.id}
+                className={
+                  index === 0
+                    ? "-mx-2 rounded-sm bg-secondary/10 px-2 py-2"
+                    : undefined
+                }
+              >
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    {medal ? (
+                      <span
+                        className={`grid size-7 shrink-0 place-items-center rounded-full font-display text-xs text-background ${medal.badge}`}
+                      >
+                        {index + 1}
+                      </span>
+                    ) : (
+                      <span className="grid size-7 shrink-0 place-items-center font-display text-xs text-muted-foreground">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    )}
+                    <span className="truncate font-semibold">
+                      {row.nickname}
+                      {index === 0 && <Crown className="ml-1 inline size-3.5 text-medal-gold" />}
+                      {row.id === highlightId && (
+                        <span className="ml-1.5 text-[10px] uppercase text-primary">You</span>
+                      )}
+                    </span>
                   </span>
-                  {row.nickname}
-                  {row.id === highlightId && (
-                    <span className="ml-1.5 text-[10px] uppercase text-primary">You</span>
-                  )}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {row.count} {row.count === 1 ? "response" : "responses"}
-                </span>
-              </div>
-              <div className="mt-1 h-1 bg-muted">
-                <div className="h-1 bg-secondary" style={{ width: `${(row.count / top) * 100}%` }} />
-              </div>
-            </li>
-          ))}
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {row.count} {row.count === 1 ? "response" : "responses"}
+                  </span>
+                </div>
+                <div className={`mt-1 h-1 bg-muted ${medal ? "ml-9" : "ml-9"}`}>
+                  <div
+                    className={`h-1 ${medal ? medal.bar : "bg-muted-foreground/40"}`}
+                    style={{ width: `${(row.count / top) * 100}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>
