@@ -590,12 +590,17 @@ function StudioPage() {
   }
 
   async function endAllMoments() {
+    const liveFeedback = activities
+      .filter((activity) => activity.is_published && activity.kind === "rating")
+      .map((activity) => activity.id);
     const { error } = await supabase
       .from("activities")
       .update({ is_published: false })
       .eq("session_id", selected!.id)
       .eq("is_published", true);
     if (error) return { error };
+    const wiped = await wipeFeedback(liveFeedback);
+    if (wiped?.error) return wiped;
     return supabase
       .from("event_sessions")
       .update({ current_activity_id: null })
