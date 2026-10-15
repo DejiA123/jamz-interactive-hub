@@ -479,7 +479,10 @@ function StudioPage() {
     }
 
     const cleanOptions = draft.options.map((label) => label.trim()).filter(Boolean);
-    if ((draft.kind === "poll" || draft.kind === "quiz") && cleanOptions.length >= 2) {
+    if (
+      ((draft.kind === "poll" || draft.kind === "quiz") && cleanOptions.length >= 2) ||
+      (draft.kind === "rating" && cleanOptions.length === 1)
+    ) {
       const { data: savedOptions, error: optionError } = await supabase
         .from("activity_options")
         .insert(
@@ -1305,6 +1308,25 @@ function StudioPage() {
               />
             </div>
 
+            {draft.kind === "rating" && (
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
+                  Name of the minister
+                </label>
+                <Input
+                  value={draft.options[0] ?? ""}
+                  onChange={(event) => setDraft({ ...draft, options: [event.target.value] })}
+                  maxLength={80}
+                  required
+                  className="h-12"
+                  placeholder="e.g. Minister Grace Adeyemi"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Add one feedback moment per minister so each gets their own encouragement.
+                </p>
+              </div>
+            )}
+
             {(draft.kind === "poll" || draft.kind === "quiz") && (
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase text-muted-foreground">
@@ -1660,7 +1682,15 @@ function MomentResults({
   }
 
   const feedback = activity.kind === "rating";
-  return responses.length === 0 ? (
+  const minister = feedback ? options[0]?.label : undefined;
+  return (
+    <>
+      {minister && (
+        <p className="mb-3 text-xs font-semibold uppercase text-secondary">
+          Feedback for {minister}
+        </p>
+      )}
+      {responses.length === 0 ? (
     <p className="text-sm italic text-muted-foreground py-4 text-center">
       {feedback
         ? "Words of encouragement will appear here as they arrive…"
@@ -1684,6 +1714,8 @@ function MomentResults({
         </div>
       ))}
     </div>
+      )}
+    </>
   );
 }
 
