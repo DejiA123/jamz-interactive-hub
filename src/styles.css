@@ -69,6 +69,9 @@
   --color-verdict-yes-foreground: var(--verdict-yes-foreground);
   --color-verdict-no: var(--verdict-no);
   --color-verdict-no-foreground: var(--verdict-no-foreground);
+  --color-medal-gold: var(--medal-gold);
+  --color-medal-silver: var(--medal-silver);
+  --color-medal-bronze: var(--medal-bronze);
   --shadow-chrome: var(--shadow-chrome);
 }
 
@@ -101,6 +104,9 @@
   --verdict-yes-foreground: oklch(0.98 0.01 150);
   --verdict-no: oklch(0.56 0.22 28);
   --verdict-no-foreground: oklch(0.98 0.01 28);
+  --medal-gold: oklch(0.82 0.135 76);
+  --medal-silver: oklch(0.79 0.015 245);
+  --medal-bronze: oklch(0.62 0.09 60);
   --shadow-chrome: inset 0 1px 0 oklch(1 0 0 / 12%), 0 18px 50px oklch(0 0 0 / 32%);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
