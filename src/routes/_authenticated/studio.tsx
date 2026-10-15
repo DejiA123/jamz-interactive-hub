@@ -69,6 +69,7 @@ import {
 } from "@/lib/live-sync";
 import { MOMENT_TYPES, isTimed, momentLabel, plural, useCountdown } from "@/lib/moments";
 import { fetchResponses, sortLiveMoments, uniqueTopic } from "@/lib/rooms";
+import { EngagementBoard } from "@/components/engagement-board";
 
 type Kind = Database["public"]["Enums"]["activity_kind"];
 type Activity = Tables<"activities">;
@@ -623,6 +624,17 @@ function StudioPage() {
     await loadSessions();
     await loadRoom(selected.id);
     setMessage(`Feedback for ${name} is live.`);
+  }
+
+  async function setShowEngagement(on: boolean) {
+    if (!selected) return;
+    const { error } = await supabase
+      .from("event_sessions")
+      .update({ show_engagement: on })
+      .eq("id", selected.id);
+    if (error) return setMessage(error.message);
+    broadcastLiveSync({ type: "SESSION_UPDATED", sessionId: selected.id, joinCode: selected.join_code });
+    await loadSessions(selected.id);
   }
 
   async function setFeedbackPublic(round: Activity, on: boolean) {
@@ -1334,6 +1346,22 @@ function StudioPage() {
                 </section>
 
 
+
+                <section className="mt-10 border border-border bg-card p-5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase">
+                      <Switch
+                        checked={selected.show_engagement}
+                        onCheckedChange={(on) => void setShowEngagement(on)}
+                      />
+                      Show to audience
+                    </label>
+                    <span className="text-xs text-muted-foreground">
+                      {selected.show_engagement ? "Audience can see this board" : "Only you can see this board"}
+                    </span>
+                  </div>
+                  <EngagementBoard sessionId={selected.id} limit={10} refreshKey={responseCounts} />
+                </section>
 
                 {/* Players who have actually joined */}
                 <section className="mt-10">

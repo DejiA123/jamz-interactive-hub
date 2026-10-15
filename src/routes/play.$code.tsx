@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EngagementBoard } from "@/components/engagement-board";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { TimerBadge, TimerBar } from "@/components/moment-timer";
@@ -497,6 +498,12 @@ function PlayPage() {
                 ))
               )}
             </ol>
+
+            {session?.show_engagement && (
+              <div className="mt-10 border-t border-border pt-6">
+                <EngagementBoard sessionId={session.id} highlightId={participantId} />
+              </div>
+            )}
 
             <div className="mt-10 border-t border-border pt-6">
               <p className="flex items-center gap-2 text-xs uppercase text-secondary font-bold">

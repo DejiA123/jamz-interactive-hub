@@ -5,3 +5,4 @@
 - [x] Build a customizable Host Studio with templates and event ordering
 - [x] Verify desktop/mobile interactions, metadata, and app health
 - [x] Add the default live interaction board and app-style navigation
+- [x] Most engaged board in live room + studio; host toggle to hide from audience
