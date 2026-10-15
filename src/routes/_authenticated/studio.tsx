@@ -550,6 +550,13 @@ function StudioPage() {
     );
   }
 
+  // Minister feedback is encouragement for the moment, not a record:
+  // wipe a feedback moment's messages as soon as it ends.
+  async function wipeFeedback(activityIds: string[]) {
+    if (activityIds.length === 0) return { error: null };
+    return supabase.from("responses").delete().in("activity_id", activityIds);
+  }
+
   function endMoment(activity: Activity) {
     return perform(async () => {
       const { error } = await supabase
@@ -557,6 +564,10 @@ function StudioPage() {
         .update({ is_published: false })
         .eq("id", activity.id);
       if (error) return { error };
+      if (activity.kind === "rating") {
+        const wiped = await wipeFeedback([activity.id]);
+        if (wiped?.error) return wiped;
+      }
       if (selected!.current_activity_id !== activity.id) return;
       // Hand the big screen to the next live moment, if any.
       const next = liveMoments.find((moment) => moment.id !== activity.id) ?? null;
