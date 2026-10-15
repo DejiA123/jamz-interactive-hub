@@ -594,6 +594,12 @@ function LiveMoment({
       >
         {activity.prompt}
       </Heading>
+      {feedback && options[0] && (
+        <p className="mt-4 flex items-center gap-2 font-display text-lg uppercase text-secondary sm:text-2xl">
+          <Heart className="size-5" /> For {options[0].label}
+        </p>
+      )}
+
 
       <div className={stacked ? "mt-7" : "mt-9"}>
         {(activity.kind === "quiz" || activity.kind === "poll") && (
