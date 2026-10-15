@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -188,6 +189,19 @@ function StudioPage() {
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
+  const [ministerFor, setMinisterFor] = useState<Activity | null>(null);
+  const [ministerName, setMinisterName] = useState("");
+  const runOfShow = useMemo(
+    () => activities.filter((activity) => !activity.is_feedback_round),
+    [activities],
+  );
+  const feedbackRounds = useMemo(
+    () =>
+      activities
+        .filter((activity) => activity.is_feedback_round)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [activities],
+  );
 
   const selected = useMemo(
     () => sessions.find((item) => item.id === selectedId) ?? null,
@@ -241,7 +255,9 @@ function StudioPage() {
 
     const list = acts ?? [];
     const ids = list.map((activity) => activity.id);
-    const liveIds = list.filter((activity) => activity.is_published).map((activity) => activity.id);
+    const liveIds = list
+      .filter((activity) => activity.is_published || activity.is_feedback_round)
+      .map((activity) => activity.id);
 
     const [optionRows, counts, liveRows] = await Promise.all([
       ids.length
@@ -548,6 +564,75 @@ function StudioPage() {
       `"${activity.prompt}" is live on audience screens.`,
       "ACTIVITY_LAUNCHED",
     );
+  }
+
+  function openFeedbackRound(activity: Activity) {
+    setMinisterName("");
+    setMinisterFor(activity);
+  }
+
+  // Each minister gets their own saved round, so feedback never mixes between people.
+  async function startFeedbackRound() {
+    const base = ministerFor;
+    const name = ministerName.trim();
+    if (!base || !selected || name.length < 2) return;
+    setWorking(true);
+    const { data: round, error } = await supabase
+      .from("activities")
+      .insert({
+        session_id: selected.id,
+        kind: "rating",
+        prompt: base.prompt,
+        duration_seconds: base.duration_seconds,
+        points: 0,
+        position: base.position,
+        is_published: true,
+        is_feedback_round: true,
+      })
+      .select("*")
+      .single();
+    const optionError = round
+      ? (
+          await supabase
+            .from("activity_options")
+            .insert({ activity_id: round.id, label: name, position: 0 })
+        ).error
+      : null;
+    const sessionError =
+      round && !optionError
+        ? (
+            await supabase
+              .from("event_sessions")
+              .update({ status: "live", current_activity_id: round.id })
+              .eq("id", selected.id)
+          ).error
+        : null;
+    setWorking(false);
+    const failed = error ?? optionError ?? sessionError;
+    if (failed) {
+      setMessage(`Could not start feedback: ${failed.message}`);
+      return;
+    }
+    setMinisterFor(null);
+    broadcastLiveSync({
+      type: "ACTIVITY_LAUNCHED",
+      sessionId: selected.id,
+      activityId: round!.id,
+      joinCode: selected.join_code,
+    });
+    await loadSessions();
+    await loadRoom(selected.id);
+    setMessage(`Feedback for ${name} is live.`);
+  }
+
+  async function setFeedbackPublic(round: Activity, on: boolean) {
+    const { error } = await supabase
+      .from("activities")
+      .update({ feedback_public: on })
+      .eq("id", round.id);
+    if (error) return setMessage(error.message);
+    broadcastLiveSync({ type: "SESSION_UPDATED", sessionId: selected?.id });
+    if (selected) await loadRoom(selected.id);
   }
 
   // Minister feedback is saved automatically: when a feedback moment ends,
@@ -1041,7 +1126,7 @@ function StudioPage() {
                     </Button>
                   </div>
 
-                  {activities.length === 0 ? (
+                  {runOfShow.length === 0 ? (
                     <div className="mt-6 border border-dashed border-border py-12 text-center">
                       <p className="font-display text-lg uppercase">No moments added yet</p>
                       <p className="mt-2 text-sm text-muted-foreground">
@@ -1050,7 +1135,7 @@ function StudioPage() {
                     </div>
                   ) : (
                     <ol className="mt-4 divide-y divide-border border-t border-border">
-                      {activities.map((activity, index) => {
+                      {runOfShow.map((activity, index) => {
                         const isLive = roomLive && activity.is_published;
                         return (
                           <li
@@ -1121,7 +1206,11 @@ function StudioPage() {
                                 <Button
                                   variant="broadcast"
                                   size="sm"
-                                  onClick={() => void goLive(activity)}
+                                  onClick={() =>
+                                    activity.kind === "rating"
+                                      ? openFeedbackRound(activity)
+                                      : void goLive(activity)
+                                  }
                                   disabled={working}
                                   className="gap-1.5 min-w-24"
                                 >
@@ -1135,6 +1224,86 @@ function StudioPage() {
                     </ol>
                   )}
                 </section>
+
+                {/* Every minister's saved feedback */}
+                <section className="mt-10">
+                  <div className="border-b border-border pb-3">
+                    <p className="text-xs font-semibold uppercase text-secondary tracking-wider">
+                      Saved automatically
+                    </p>
+                    <h3 className="mt-1 font-display text-xl uppercase">
+                      Feedback archive ({feedbackRounds.length})
+                    </h3>
+                  </div>
+                  {feedbackRounds.length === 0 ? (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      When you run a Minister feedback moment, every message is kept here.
+                    </p>
+                  ) : (
+                    <div className="mt-4 grid gap-4">
+                      {feedbackRounds.map((round) => {
+                        const name = optionsMap[round.id]?.[0]?.label ?? "Minister";
+                        const rows = liveResponses[round.id] ?? [];
+                        const texts = rows
+                          .map((r) => r.text_answer ?? (r.rating ? `${r.rating} out of 5 stars` : ""))
+                          .filter(Boolean);
+                        const isLive = roomLive && round.is_published;
+                        return (
+                          <article key={round.id} className="border border-border bg-card p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-display text-lg uppercase">{name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(round.created_at).toLocaleString()} ·{" "}
+                                  {plural(texts.length, "message")}
+                                  {isLive && <span className="ml-2 font-bold text-live">LIVE NOW</span>}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <label className="flex items-center gap-2 text-xs font-semibold uppercase">
+                                  <Switch
+                                    checked={round.feedback_public}
+                                    disabled={working}
+                                    onCheckedChange={(on) => void setFeedbackPublic(round, on)}
+                                  />
+                                  Show to audience
+                                </label>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={texts.length === 0}
+                                  onClick={() => {
+                                    void navigator.clipboard?.writeText(
+                                      `Feedback for ${name}\n\n${texts.map((t) => `• ${t}`).join("\n")}`,
+                                    );
+                                    setMessage(`Copied ${plural(texts.length, "message")} for ${name}.`);
+                                  }}
+                                >
+                                  <Copy className="size-3.5" /> Copy all
+                                </Button>
+                              </div>
+                            </div>
+                            {texts.length > 0 && (
+                              <ul className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1">
+                                {texts.map((t, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex gap-2 border border-border bg-background p-3 text-sm"
+                                  >
+                                    <Heart className="mt-0.5 size-4 shrink-0 text-secondary" />
+                                    {t}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+
 
                 {/* Players who have actually joined */}
                 <section className="mt-10">
@@ -1209,6 +1378,44 @@ function StudioPage() {
           </section>
         </div>
       </main>
+
+      {/* Start a feedback round: always asks for the minister's name fresh */}
+      <Dialog open={!!ministerFor} onOpenChange={(open) => !open && setMinisterFor(null)}>
+        <DialogContent className="border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl uppercase">
+              Who is ministering now?
+            </DialogTitle>
+            <DialogDescription>
+              Feedback from this round is saved under this name in the Feedback archive.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void startFeedbackRound();
+            }}
+            className="grid gap-4"
+          >
+            <Input
+              autoFocus
+              value={ministerName}
+              onChange={(event) => setMinisterName(event.target.value)}
+              maxLength={80}
+              required
+              className="h-12"
+              placeholder="e.g. Minister Grace Adeyemi"
+            />
+            <Button
+              type="submit"
+              variant="broadcast"
+              disabled={working || ministerName.trim().length < 2}
+            >
+              <Play className="size-4" /> Go live
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Event Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
