@@ -136,6 +136,7 @@ export type Database = {
           id: string
           join_code: string
           owner_id: string | null
+          show_engagement: boolean
           status: Database["public"]["Enums"]["session_status"]
           theme: string
           title: string
@@ -147,6 +148,7 @@ export type Database = {
           id?: string
           join_code: string
           owner_id?: string | null
+          show_engagement?: boolean
           status?: Database["public"]["Enums"]["session_status"]
           theme?: string
           title: string
@@ -158,6 +160,7 @@ export type Database = {
           id?: string
           join_code?: string
           owner_id?: string | null
+          show_engagement?: boolean
           status?: Database["public"]["Enums"]["session_status"]
           theme?: string
           title?: string

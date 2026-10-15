@@ -1,0 +1,1 @@
+ALTER TABLE public.event_sessions ADD COLUMN show_engagement boolean NOT NULL DEFAULT true;
