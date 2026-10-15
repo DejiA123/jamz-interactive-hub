@@ -86,6 +86,7 @@ function PlayPage() {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
   const [busy, setBusy] = useState(true);
+  const [sharedFeedback, setSharedFeedback] = useState<{ id: string; name: string; messages: string[] }[]>([]);
   const promptedForName = useRef(false);
 
   const loadRoom = useCallback(async () => {
@@ -182,6 +183,36 @@ function PlayPage() {
     );
     setLeaders(people ?? []);
     setPlayerCount(count ?? people?.length ?? 0);
+
+    // Past minister feedback the host chose to share with the audience.
+    const { data: shared } = await supabase
+      .from("activities")
+      .select("id,created_at")
+      .eq("session_id", room.id)
+      .eq("feedback_public", true)
+      .order("created_at", { ascending: false });
+    const sharedIds = (shared ?? []).map((row) => row.id);
+    if (sharedIds.length) {
+      const [{ data: names }, { data: notes }] = await Promise.all([
+        supabase.from("activity_options").select("activity_id,label").in("activity_id", sharedIds),
+        supabase
+          .from("responses")
+          .select("activity_id,text_answer")
+          .in("activity_id", sharedIds)
+          .not("text_answer", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+      ]);
+      setSharedFeedback(
+        sharedIds.map((id) => ({
+          id,
+          name: names?.find((n) => n.activity_id === id)?.label ?? "Minister",
+          messages: (notes ?? [])
+            .filter((n) => n.activity_id === id && n.text_answer)
+            .map((n) => n.text_answer as string),
+        })),
+      );
+    } else setSharedFeedback([]);
     setBusy(false);
   }, [code]);
 
@@ -402,6 +433,31 @@ function PlayPage() {
                 ))}
               </div>
             )}
+          {sharedFeedback.length > 0 && (
+            <div className="mt-10">
+              <h2 className="font-display text-xl uppercase">Words of encouragement</h2>
+              <div className="mt-4 grid gap-4">
+                {sharedFeedback.map((round) => (
+                  <article key={round.id} className="border border-border bg-card p-4">
+                    <p className="flex items-center gap-2 font-display uppercase text-secondary">
+                      <Heart className="size-4" /> For {round.name}
+                    </p>
+                    {round.messages.length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No messages yet.</p>
+                    ) : (
+                      <ul className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+                        {round.messages.map((m, i) => (
+                          <li key={i} className="border border-border bg-background p-3 text-sm">
+                            {m}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
           </section>
 
           {/* Sidebar Leaderboard */}
