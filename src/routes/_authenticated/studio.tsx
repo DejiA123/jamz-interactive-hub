@@ -631,7 +631,7 @@ function StudioPage() {
       .update({ feedback_public: on })
       .eq("id", round.id);
     if (error) return setMessage(error.message);
-    broadcastLiveSync({ type: "SESSION_UPDATED", sessionId: selected?.id });
+    broadcastLiveSync({ type: "SESSION_UPDATED", sessionId: selected?.id ?? "" });
     if (selected) await loadRoom(selected.id);
   }
 
