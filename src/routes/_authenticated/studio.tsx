@@ -1526,12 +1526,11 @@ function StudioPage() {
                   value={draft.options[0] ?? ""}
                   onChange={(event) => setDraft({ ...draft, options: [event.target.value] })}
                   maxLength={80}
-                  required
                   className="h-12"
-                  placeholder="e.g. Minister Grace Adeyemi"
+                  placeholder="Optional — you'll be asked each time you press Go live"
                 />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Add one feedback moment per minister so each gets their own encouragement.
+                  Reuse this one moment for every minister: each Go live asks for a new name and saves feedback separately.
                 </p>
               </div>
             )}
