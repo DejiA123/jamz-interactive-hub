@@ -550,13 +550,8 @@ function StudioPage() {
     );
   }
 
-  // Minister feedback is encouragement for the moment, not a record:
-  // wipe a feedback moment's messages as soon as it ends.
-  async function wipeFeedback(activityIds: string[]) {
-    if (activityIds.length === 0) return { error: null };
-    return supabase.from("responses").delete().in("activity_id", activityIds);
-  }
-
+  // Minister feedback is saved automatically: when a feedback moment ends,
+  // its messages stay stored so the minister can read them afterwards.
   function endMoment(activity: Activity) {
     return perform(async () => {
       const { error } = await supabase
@@ -564,10 +559,6 @@ function StudioPage() {
         .update({ is_published: false })
         .eq("id", activity.id);
       if (error) return { error };
-      if (activity.kind === "rating") {
-        const wiped = await wipeFeedback([activity.id]);
-        if (wiped?.error) return wiped;
-      }
       if (selected!.current_activity_id !== activity.id) return;
       // Hand the big screen to the next live moment, if any.
       const next = liveMoments.find((moment) => moment.id !== activity.id) ?? null;
@@ -590,17 +581,12 @@ function StudioPage() {
   }
 
   async function endAllMoments() {
-    const liveFeedback = activities
-      .filter((activity) => activity.is_published && activity.kind === "rating")
-      .map((activity) => activity.id);
     const { error } = await supabase
       .from("activities")
       .update({ is_published: false })
       .eq("session_id", selected!.id)
       .eq("is_published", true);
     if (error) return { error };
-    const wiped = await wipeFeedback(liveFeedback);
-    if (wiped?.error) return wiped;
     return supabase
       .from("event_sessions")
       .update({ current_activity_id: null })
