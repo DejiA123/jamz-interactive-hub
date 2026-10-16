@@ -204,46 +204,33 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Final Event Order */}
+        {/* What to expect */}
         <section id="programme" className="scroll-mt-16 px-5 py-14 lg:px-10 lg:py-20">
           <div className="mx-auto max-w-7xl">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
               <div>
                 <p className="flex items-center gap-2 text-xs font-semibold uppercase text-primary">
-                  <CalendarDays className="size-4" /> Final event order
+                  <CalendarDays className="size-4" /> What to expect
                 </p>
                 <h2 className="mt-3 font-display text-4xl uppercase sm:text-5xl">
-                  Three days.<br />
-                  One creative gathering.
+                  One night.<br />
+                  Full of life.
                 </h2>
                 <p className="mt-5 max-w-[42ch] text-muted-foreground">
-                  Enter your code above to join the live room and take part in each moment.
+                  Friday at Gospel Jamz is packed with moments for everyone. Enter your code above to join the live room and take part in each one.
                 </p>
               </div>
-              <ol className="border-t border-border">
-                {programme.map((item, index) => (
+              <ul className="border-t border-border">
+                {expectations.map((item) => (
                   <li
                     key={item.title}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 border-b border-border py-6 sm:grid-cols-[6rem_7rem_minmax(0,1fr)]"
+                    className="grid grid-cols-[minmax(0,1fr)] gap-1 border-b border-border py-6 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-5"
                   >
-                    <span className="font-display text-sm font-bold text-primary">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <span className="hidden text-sm text-muted-foreground sm:block">
-                      {item.day}
-                      <br />
-                      <b className="text-foreground">{item.time}</b>
-                    </span>
-                    <div>
-                      <h3 className="font-display text-lg uppercase">{item.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground sm:hidden">
-                        {item.day} · {item.time}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground">{item.note}</p>
-                    </div>
+                    <h3 className="font-display text-lg uppercase">{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground sm:mt-0.5">{item.note}</p>
                   </li>
                 ))}
-              </ol>
+              </ul>
             </div>
           </div>
         </section>
