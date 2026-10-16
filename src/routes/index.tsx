@@ -9,11 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { friendlyJoinError, nicknameProblem, rememberPlayer, verifyStoredPlayer } from "@/lib/rooms";
 import stageImage from "@/assets/gospel-jamz-stage.jpg";
 
-const programme = [
-  { day: "Friday · 16 Oct", time: "18:00", title: "Opening Celebration", note: "Praise, welcome and the first live audience moment" },
-  { day: "Saturday · 17 Oct", time: "10:00", title: "Creative Arts Sessions", note: "Music, drama, spoken word and workshops" },
-  { day: "Saturday · 17 Oct", time: "16:00", title: "Panel & Live Questions", note: "Ask the panel and shape the conversation" },
-  { day: "Sunday · 18 Oct", time: "17:00", title: "Gospel Jamz Finale", note: "Ministration, audience feedback and celebration" },
+const expectations = [
+  { title: "A lively welcome", note: "Audience games, icebreakers and interaction from the first minutes" },
+  { title: "Worship", note: "Led by Pastor Deji, Kenoly and the worship team" },
+  { title: "Live performances", note: "Music and ministration from Jo Melody, J Rose, Sodiq and more" },
+  { title: "The word", note: "Evangelism, the gifts of the Spirit, and teaching from Bishop/Dr Mirella" },
+  { title: "Testimonies & drama", note: "Real stories of what God has done, plus a drama ministration" },
+  { title: "Prayer & closing", note: "We pray together and round off with announcements" },
 ];
 
 export const Route = createFileRoute("/")({
