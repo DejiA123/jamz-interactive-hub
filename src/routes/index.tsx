@@ -9,11 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { friendlyJoinError, nicknameProblem, rememberPlayer, verifyStoredPlayer } from "@/lib/rooms";
 import stageImage from "@/assets/gospel-jamz-stage.jpg";
 
-const programme = [
-  { day: "Friday · 16 Oct", time: "18:00", title: "Opening Celebration", note: "Praise, welcome and the first live audience moment" },
-  { day: "Saturday · 17 Oct", time: "10:00", title: "Creative Arts Sessions", note: "Music, drama, spoken word and workshops" },
-  { day: "Saturday · 17 Oct", time: "16:00", title: "Panel & Live Questions", note: "Ask the panel and shape the conversation" },
-  { day: "Sunday · 18 Oct", time: "17:00", title: "Gospel Jamz Finale", note: "Ministration, audience feedback and celebration" },
+const expectations = [
+  { title: "A lively welcome", note: "Audience games, icebreakers and interaction from the first minutes" },
+  { title: "Worship", note: "Led by Pastor Deji, Kenoly and the worship team" },
+  { title: "Live performances", note: "Music and ministration from Jo Melody, J Rose, Sodiq and more" },
+  { title: "The word", note: "Evangelism, the gifts of the Spirit, and teaching from Bishop/Dr Mirella" },
+  { title: "Testimonies & drama", note: "Real stories of what God has done, plus a drama ministration" },
+  { title: "Prayer & closing", note: "We pray together and round off with announcements" },
 ];
 
 export const Route = createFileRoute("/")({
@@ -202,46 +204,33 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Final Event Order */}
+        {/* What to expect */}
         <section id="programme" className="scroll-mt-16 px-5 py-14 lg:px-10 lg:py-20">
           <div className="mx-auto max-w-7xl">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
               <div>
                 <p className="flex items-center gap-2 text-xs font-semibold uppercase text-primary">
-                  <CalendarDays className="size-4" /> Final event order
+                  <CalendarDays className="size-4" /> What to expect
                 </p>
                 <h2 className="mt-3 font-display text-4xl uppercase sm:text-5xl">
-                  Three days.<br />
-                  One creative gathering.
+                  One night.<br />
+                  Full of life.
                 </h2>
                 <p className="mt-5 max-w-[42ch] text-muted-foreground">
-                  Enter your code above to join the live room and take part in each moment.
+                  Friday at Gospel Jamz is packed with moments for everyone. Enter your code above to join the live room and take part in each one.
                 </p>
               </div>
-              <ol className="border-t border-border">
-                {programme.map((item, index) => (
+              <ul className="border-t border-border">
+                {expectations.map((item) => (
                   <li
                     key={item.title}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 border-b border-border py-6 sm:grid-cols-[6rem_7rem_minmax(0,1fr)]"
+                    className="grid grid-cols-[minmax(0,1fr)] gap-1 border-b border-border py-6 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-5"
                   >
-                    <span className="font-display text-sm font-bold text-primary">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <span className="hidden text-sm text-muted-foreground sm:block">
-                      {item.day}
-                      <br />
-                      <b className="text-foreground">{item.time}</b>
-                    </span>
-                    <div>
-                      <h3 className="font-display text-lg uppercase">{item.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground sm:hidden">
-                        {item.day} · {item.time}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground">{item.note}</p>
-                    </div>
+                    <h3 className="font-display text-lg uppercase">{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground sm:mt-0.5">{item.note}</p>
                   </li>
                 ))}
-              </ol>
+              </ul>
             </div>
           </div>
         </section>
