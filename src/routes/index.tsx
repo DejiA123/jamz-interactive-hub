@@ -10,12 +10,13 @@ import { friendlyJoinError, nicknameProblem, rememberPlayer, verifyStoredPlayer 
 import stageImage from "@/assets/gospel-jamz-stage.jpg";
 
 const expectations = [
-  { title: "A lively welcome", note: "Audience games, icebreakers and interaction from the first minutes" },
-  { title: "Worship", note: "Led by Pastor Deji, Kenoly and the worship team" },
-  { title: "Live performances", note: "Music and ministration from Jo Melody, J Rose, Sodiq and more" },
-  { title: "The word", note: "Evangelism, the gifts of the Spirit, and teaching from Bishop/Dr Mirella" },
-  { title: "Testimonies & drama", note: "Real stories of what God has done, plus a drama ministration" },
-  { title: "Prayer & closing", note: "We pray together and round off with announcements" },
+  { title: "A lively welcome", note: "Icebreakers, audience games and interaction throughout the day" },
+  { title: "Praise & worship", note: "Led by Pelumi, Vicky, Bailey333 and more" },
+  { title: "Music, poetry & performance", note: "Singing, rap, dance, spoken word and comedy from Merit, Mins Mercy, Rekky, Scripz, Sodiq, Kido, Lois and Lawrenta" },
+  { title: "Drama & Drama Judgement", note: "Watch the drama, then cast your verdict live" },
+  { title: "Podcast & panel", note: "Truly Crowned Podcast and a Young Leaders Panel taking your questions" },
+  { title: "The word", note: "Teaching from Bishop/Dr, a clear Gospel presentation and \"Living Boldly for Christ\"" },
+  { title: "Prayer & a snack break", note: "Time to pray together and recharge" },
 ];
 
 export const Route = createFileRoute("/")({
@@ -213,11 +214,11 @@ function HomePage() {
                   <CalendarDays className="size-4" /> What to expect
                 </p>
                 <h2 className="mt-3 font-display text-4xl uppercase sm:text-5xl">
-                  One night.<br />
+                  One day.<br />
                   Full of life.
                 </h2>
                 <p className="mt-5 max-w-[42ch] text-muted-foreground">
-                  Friday at Gospel Jamz is packed with moments for everyone. Enter your code above to join the live room and take part in each one.
+                  Saturday at Gospel Jamz is packed with moments for everyone. Enter your code above to join the live room and take part in each one.
                 </p>
               </div>
               <ul className="border-t border-border">
